@@ -1,0 +1,10 @@
+html,body,#app { height:100%; }
+    /* Map height is controlled per-section so map shows correctly */ 
+    #map { height: calc(70vh); min-height:420px; width:100%; }
+    .route-badge { min-width:64px }
+    .pulse { animation: pulse 1.4s infinite; }
+    @keyframes pulse { 0%{ transform:scale(1); opacity:1 } 70%{ transform:scale(1.08); opacity:.6 } 100%{ transform:scale(1); opacity:1 } }
+    .fade { transition: opacity .35s, transform .35s; }
+    .hidden-page { display:none; opacity:0; transform:translateY(6px); }
+    .visible-page { display:block; opacity:1; transform:none; }
+    .suggest-box { z-index:60; }

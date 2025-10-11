@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Safe Route Finder — Prototype</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <div id="app" class="flex flex-col h-full">
+
+    <!-- Top nav -->
+    <header class="bg-gradient-to-r from-indigo-600 to-indigo-400 text-white p-4 shadow-md">
+      <div class="max-w-6xl mx-auto flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="bg-white/20 p-2 rounded-lg">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" class="text-white"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7l3-7z" fill="currentColor"/></svg>
+          </div>
+          <div>
+            <div class="text-lg font-semibold">Safe Route Finder</div>
+            <div class="text-sm opacity-90">Prototype — Community-powered safety routing</div>
+          </div>
+          <nav class="ml-6 space-x-3 hidden md:inline">
+            <a href="#home" data-nav class="text-sm px-3 py-1 rounded hover:bg-white/10">Home</a>
+            <a href="#route" data-nav class="text-sm px-3 py-1 rounded hover:bg-white/10">Route Finder</a>
+            <a href="#community" data-nav class="text-sm px-3 py-1 rounded hover:bg-white/10">Community</a>
+            <a href="#about" data-nav class="text-sm px-3 py-1 rounded hover:bg-white/10">About</a>
+          </nav>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="btnSOS" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg font-semibold shadow-md">SOS</button>
+          <button id="btnReport" class="bg-white text-indigo-600 px-4 py-2 rounded-lg font-semibold shadow-sm">Report Area</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Pages container -->
+    <main class="max-w-6xl mx-auto w-full flex-1 p-4">
+      <!-- Home -->
+      <section id="page-home" class="fade visible-page">
+        <div class="bg-white p-6 rounded-md shadow-md">
+          <h1 class="text-2xl font-semibold">Welcome to Safe Route Finder</h1>
+          <p class="mt-2 text-slate-600">This demo finds multiple routes between two points and scores them by safety using community reports and safety points. Try "Find Safe Routes" or click <a href="#route" data-nav class="text-indigo-600 underline">Route Finder</a>.</p>
+        </div>
+      </section>
+
+      <!-- Route Finder -->
+      <section id="page-route" class="mt-4 fade hidden-page">
+        <div class="flex flex-col md:flex-row gap-4">
+          <!-- Left: Map -->
+          <div class="flex-1 rounded-lg overflow-hidden shadow-md bg-white p-4">
+            <div id="map"></div>
+            <div id="mapNotice" class="mt-3 text-xs text-slate-500">Maps provided by OpenStreetMap. Routes from OSRM (demo).</div>
+          </div>
+
+          <!-- Right: Panel -->
+          <aside class="w-full md:w-96 lg:w-80 flex flex-col gap-4">
+            <div class="bg-white p-4 rounded-lg shadow-md">
+              <label class="block text-sm font-medium text-slate-600">Start</label>
+              <div class="relative">
+                <input id="startInput" class="mt-2 w-full px-3 py-2 border rounded-md" placeholder="e.g., Chitkara University, Punjab" />
+              </div>
+              <label class="block text-sm font-medium text-slate-600 mt-3">Destination</label>
+              <div class="relative">
+                <input id="endInput" class="mt-2 w-full px-3 py-2 border rounded-md" placeholder="e.g., Elante Mall, Chandigarh" />
+              </div>
+
+              <div class="flex gap-2 mt-4">
+                <button id="btnFind" class="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-indigo-700">Find Safe Routes</button>
+                <button id="btnCenter" title="Center map" class="bg-white border px-3 py-2 rounded-md">Center</button>
+              </div>
+
+              <p class="text-xs text-slate-500 mt-2">Using OpenStreetMap + OSRM. Community reports & safety layers are realtime (Firebase or local fallback).</p>
+            </div>
+
+            <div id="routesBox" class="bg-white p-4 rounded-lg shadow-md overflow-auto max-h-96">
+              <div class="flex items-center justify-between mb-3">
+                <div class="font-semibold">Available routes</div>
+                <div class="text-sm text-slate-500">Tap a route to select</div>
+              </div>
+              <div id="routesList" class="space-y-3">
+                <!-- route items -->
+              </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-lg shadow-md">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-sm text-slate-500">Realtime reports</div>
+                  <div class="font-semibold">Community Feed</div>
+                </div>
+                <div id="reportsCount" class="text-indigo-600 font-semibold">0</div>
+              </div>
+              <div id="feedList" class="mt-3 space-y-2 text-sm text-slate-700 max-h-40 overflow-auto">
+                <!-- reports -->
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- Community page -->
+      <section id="page-community" class="mt-4 fade hidden-page">
+        <div class="bg-white p-6 rounded-md shadow-md">
+          <h2 class="font-semibold">Community</h2>
+          <p class="mt-2 text-slate-600">See and submit reports from the community. Reports appear on the map and in the feed.</p>
+          <div class="mt-4">
+            <button id="btnOpenReport" class="px-4 py-2 bg-indigo-600 text-white rounded-md">Report Area</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- About / Help -->
+      <section id="page-about" class="mt-4 fade hidden-page">
+        <div class="bg-white p-6 rounded-md shadow-md">
+          <h2 class="font-semibold">About / Help</h2>
+          <p class="mt-2 text-slate-600">This demo uses Nominatim (geocoding), OSRM (routing) and Firebase for realtime reports. Replace Firebase config at the top of the script to enable cloud persistence.</p>
+          <ul class="list-disc ml-6 mt-2 text-sm text-slate-600">
+            <li>Type in the start or destination — suggestions appear automatically.</li>
+            <li>Click "Find Safe Routes" to show route options and safety scores.</li>
+            <li>Use SOS to log an urgent alert (demo) or Report Area to add reports.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="max-w-6xl mx-auto p-4 text-xs text-slate-500">Built for hackathon • Demo prototype • Replace Firebase config with your project details</footer>
+  </div>
+
+  <!-- Modals (Report + SOS confirmation) -->
+  <div id="modalRoot"></div>
+
+  <!-- Leaflet + Routing Machine (load before map init) -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
+
+  <!-- Firebase (v9 compat CDN for quick setup) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="main.js"></script>
+
+  </script>
+</body>
+</html>
