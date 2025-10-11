@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Safe Route Finder — Prototype</title>
+  <title>Safe Route Finder</title>
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -21,29 +21,37 @@
   <div id="app" class="flex flex-col h-full">
 
     <!-- Top nav -->
-    <header class="bg-gradient-to-r from-indigo-600 to-indigo-400 text-white p-4 shadow-md">
-      <div class="max-w-6xl mx-auto flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="bg-white/20 p-2 rounded-lg">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" class="text-white"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7l3-7z" fill="currentColor"/></svg>
-          </div>
-          <div>
-            <div class="text-lg font-semibold">Safe Route Finder</div>
-            <div class="text-sm opacity-90">Prototype — Community-powered safety routing</div>
-          </div>
-          <nav class="ml-6 space-x-3 hidden md:inline">
-            <a href="#home" data-nav class="text-sm px-3 py-1 rounded hover:bg-white/10">Home</a>
-            <a href="#route" data-nav class="text-sm px-3 py-1 rounded hover:bg-white/10">Route Finder</a>
-            <a href="#community" data-nav class="text-sm px-3 py-1 rounded hover:bg-white/10">Community</a>
-            <a href="#about" data-nav class="text-sm px-3 py-1 rounded hover:bg-white/10">About</a>
-          </nav>
-        </div>
-        <div class="flex items-center gap-3">
-          <button id="btnSOS" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg font-semibold shadow-md">SOS</button>
-          <button id="btnReport" class="bg-white text-indigo-600 px-4 py-2 rounded-lg font-semibold shadow-sm">Report Area</button>
-        </div>
+   <!-- ...existing code... -->
+<header class="bg-gradient-to-r from-indigo-600 to-indigo-400 text-white p-4 shadow-md">
+  <div class="max-w-6xl mx-auto flex items-center justify-between">
+    <div class="flex items-center gap-4">
+      <!-- logo (transparent PNG / SVG) -->
+      <div class="w-12 h-12 flex-shrink-0">
+        <img src="logo.jpg" alt="Suraksha Sathi" class="w-full h-full object-contain" />
       </div>
-    </header>
+
+      <div>
+        <div class="text-lg font-semibold leading-tight">Suraksha Sathi</div>
+        <div class="text-sm opacity-90 -mt-0.5">Because Every Journey Deserves Safety</div>
+      </div>
+
+      <!-- nav (visible on md+) -->
+      <nav class="ml-8 space-x-3 hidden md:flex items-center">
+        <a href="#home" data-nav class="text-sm px-3 py-1 rounded hover:bg-white/10">Home</a>
+        <a href="#route" data-nav class="text-sm px-3 py-1 rounded hover:bg-white/10">Route Finder</a>
+        <a href="#community" data-nav class="text-sm px-3 py-1 rounded hover:bg-white/10">Community</a>
+        <a href="#about" data-nav class="text-sm px-3 py-1 rounded hover:bg-white/10">About</a>
+      </nav>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button id="btnSOS" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg font-semibold shadow-md">SOS</button>
+      <button id="btnReport" class="bg-white text-indigo-600 px-4 py-2 rounded-lg font-semibold shadow-sm">Report Area</button>
+      <!-- mobile nav toggle (optional) -->
+    </div>
+  </div>
+</header>
+<!-- ...existing code... -->
 
     <!-- Full-bleed Home background (placed outside main so gradient spans full width) -->
     <section id="page-home" class="fade visible-page bg-gradient-to-br from-indigo-600 to-pink-500 text-white py-16">
