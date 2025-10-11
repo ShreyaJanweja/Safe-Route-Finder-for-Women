@@ -18,16 +18,15 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-slate-50 text-slate-800">
-  <div id="app" class="flex flex-col h-full">
+  <div id="app" class="flex flex-col min-h-screen">
 
     <!-- Top nav -->
-   <!-- ...existing code... -->
 <header class="bg-gradient-to-r from-indigo-600 to-indigo-400 text-white p-4 shadow-md">
   <div class="max-w-6xl mx-auto flex items-center justify-between">
     <div class="flex items-center gap-4">
       <!-- logo (transparent PNG / SVG) -->
-      <div class="w-12 h-12 flex-shrink-0">
-        <img src="logo.jpg" alt="Suraksha Sathi" class="w-full h-full object-contain" />
+      <div class="logo-wrap w-12 h-12 flex-shrink-0">
+        <img src="logo.jpg" alt="Suraksha Sathi" class="logo-img" />
       </div>
 
       <div>
@@ -51,7 +50,6 @@
     </div>
   </div>
 </header>
-<!-- ...existing code... -->
 
     <!-- Full-bleed Home background (placed outside main so gradient spans full width) -->
     <section id="page-home" class="fade visible-page bg-gradient-to-br from-indigo-600 to-pink-500 text-white py-16">
@@ -74,7 +72,6 @@
 
           <div data-aos="zoom-in" class="relative">
             <div id="home-mini-map" class="rounded-lg shadow-lg" style="height:260px; min-height:180px;"></div>
-            <!-- demo label removed as requested -->
           </div>
         </div>
 
@@ -256,11 +253,54 @@
       </section>
     </main>
 
-    <!-- Footer -->
-    <footer class="max-w-6xl mx-auto p-4 text-xs text-slate-500">Built for hackathon • Demo prototype • Replace Firebase config with your project details</footer>
-  </div>
-
-  <!-- Modals (Report + SOS confirmation) -->
+    <!-- Polished single footer (keep only this) -->
++    <footer class="w-full bg-gradient-to-r from-indigo-700 to-indigo-600 text-white mt-12">
++      <div class="max-w-6xl mx-auto px-6 py-10 grid gap-6 md:grid-cols-4">
++        <div>
++          <div class="text-lg font-semibold">Suraksha Sathi</div>
++          <p class="text-sm mt-2 text-indigo-100">Empowering safe mobility for women using community reports, live insights and SOS alerts.</p>
++          <div class="text-xs text-indigo-200 mt-4">Built by students • Demo Prototype</div>
++        </div>
++        <div>
++          <div class="font-semibold mb-2">Quick links</div>
++          <ul class="space-y-1 text-sm">
++            <li><a data-nav href="#home" class="footer-link">Home</a></li>
++            <li><a data-nav href="#route" class="footer-link">Route Finder</a></li>
++            <li><a data-nav href="#community" class="footer-link">Community</a></li>
++            <li><a data-nav href="#about" class="footer-link">About</a></li>
++          </ul>
++        </div>
++        <div>
++          <div class="font-semibold mb-2">Resources</div>
++          <ul class="space-y-1 text-sm">
++            <li><a href="https://www.openstreetmap.org" target="_blank" class="footer-link">OpenStreetMap</a></li>
++            <li><a href="https://project-osrm.org" target="_blank" class="footer-link">OSRM routing</a></li>
++            <li><a href="#" class="footer-link">Privacy & Terms</a></li>
++          </ul>
++        </div>
++        <div>
++          <div class="font-semibold mb-2">Contact</div>
++          <div class="text-sm text-indigo-100">Email: <a href="mailto:hello@surakshasathi.example" class="footer-link">hello@surakshasathi.example</a></div>
++          <div class="text-sm text-indigo-100 mt-2">Phone: <a href="tel:+911234567890" class="footer-link">+91 12345 67890</a></div>
++          <div class="flex gap-2 mt-3">
++            <a class="footer-social" href="#" aria-label="Twitter">🐦</a>
++            <a class="footer-social" href="#" aria-label="Instagram">📸</a>
++            <a class="footer-social" href="#" aria-label="LinkedIn">🔗</a>
++          </div>
++        </div>
++      </div>
++      <div class="border-t border-indigo-600/50">
++        <div class="max-w-6xl mx-auto px-6 py-3 flex flex-col md:flex-row items-center justify-between text-xs text-indigo-200">
++          <div>© <span id="year"></span> Suraksha Sathi — All rights reserved</div>
++          <div class="mt-2 md:mt-0">Made with ❤️ • Credits: CGC Hackathon</div>
++        </div>
++      </div>
++    </footer>
++
++    <!-- Floating buttons -->
++    <button id="backToTop" title="Back to top" class="fixed bottom-6 right-20 z-40 bg-white text-indigo-600 px-3 py-3 rounded-full shadow-lg opacity-0 transition-opacity" aria-hidden="true">↑</button>
++    <button id="chatBtn" title="Chat with us" class="fixed bottom-6 right-6 z-50 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-full shadow-lg flex items-center gap-2">💬 Chat</button
+  <!-- Modals (Report + SOS confirmation + Chat) -->
   <div id="modalRoot"></div>
 
   <!-- Leaflet + Routing Machine (load before map init) -->

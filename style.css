@@ -8,3 +8,43 @@ html,body,#app { height:100%; }
     .hidden-page { display:none; opacity:0; transform:translateY(6px); }
     .visible-page { display:block; opacity:1; transform:none; }
     .suggest-box { z-index:60; }
+
+    /* ...existing code... */
+html,body,#app { height:100%; }
+    /* Map height is controlled per-section so map shows correctly */ 
+    #map { height: calc(70vh); min-height:420px; width:100%; }
+    .route-badge { min-width:64px }
+    .pulse { animation: pulse 1.4s infinite; }
+    @keyframes pulse { 0%{ transform:scale(1); opacity:1 } 70%{ transform:scale(1.08); opacity:.6 } 100%{ transform:scale(1); opacity:1 } }
+    .fade { transition: opacity .35s, transform .35s; }
+    .hidden-page { display:none; opacity:0; transform:translateY(6px); }
+    .visible-page { display:block; opacity:1; transform:none; }
+    .suggest-box { z-index:60; }
+
+/* ---------- Footer + Floating buttons ---------- */
+.footer-link { color: rgba(255,255,255,0.92); text-decoration:none; }
+.footer-link:hover { color: #fff; text-decoration:underline; }
+.footer-social { display:inline-flex; width:34px; height:34px; align-items:center; justify-content:center; border-radius:8px; background:rgba(255,255,255,0.06); color:#fff; text-decoration:none; }
+.footer-social:hover { background: rgba(255,255,255,0.12); transform:translateY(-2px); transition: all .18s ease; }
+
+/* floating buttons */
+#chatBtn { backdrop-filter: blur(4px); }
+#backToTop { transition: opacity .25s ease; }
+
+/* modal tweak for chat */
+#modalRoot .fixed { z-index: 9999; }
+#modalRoot textarea, #modalRoot input { font-family: inherit; }
+
+/* keep footer accessible on small screens */
+@media (max-width: 768px){
+  .footer-social { width:30px; height:30px; border-radius:6px; }
+  #backToTop { right:16px; bottom:76px; } /* move above chat on mobile */
+  #chatBtn { right:16px; bottom:18px; }
+}
+
+/* keep small shadow / polish */
+.logo-wrap { border-radius: 10px; overflow: hidden; box-shadow: 0 6px 16px rgba(15,23,42,0.12); background: rgba(255,255,255,0.06); display: inline-block; }
+.logo-wrap .logo-img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: inherit; background: transparent; }
+
+ 
+ 

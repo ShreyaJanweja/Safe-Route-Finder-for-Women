@@ -32,9 +32,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
       if(target && pages[target]) showPage(target);
     });
   });
-  // start based on hash
-  const startHash = (location.hash || '#route').replace('#','');
-  showPage(pages[startHash] ? startHash : 'route');
+   // start based on hash (default to home)
+  const startHash = (location.hash || '#home').replace('#','');
+  showPage(pages[startHash] ? startHash : 'home');
 
   /* ---------- HELPERS ---------- */
   function debounce(fn, delay=300){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args),delay); }; }
@@ -499,4 +499,78 @@ document.addEventListener('DOMContentLoaded', ()=>{
   // initial render of local reports if fallback
   if(useLocalFallback) renderReports(fetchLocalReports());
 
+  /* ---------- FOOTER / CHAT / BACK-TO-TOP ---------- */
+  // set copyright year
+  try{ document.getElementById('year') && (document.getElementById('year').innerText = new Date().getFullYear()); }catch(e){}
+
+  // Back to Top: show when scrolled and smooth scroll
+  (function(){
+    const btn = document.getElementById('backToTop');
+    if(!btn) return;
+    const toggle = ()=> btn.classList.toggle('opacity-0', window.scrollY < 240);
+    window.addEventListener('scroll', toggle);
+    toggle();
+    btn.addEventListener('click', ()=> window.scrollTo({ top: 0, behavior: 'smooth' }));
+  })();
+
+  // Chat modal (floating Chat with Us)
+  function saveFeedbackLocal(f){
+    try{
+      const key = 'sr_feedback_v1';
+      const arr = JSON.parse(localStorage.getItem(key) || '[]');
+      arr.push(f);
+      localStorage.setItem(key, JSON.stringify(arr));
+    }catch(e){ console.warn('save feedback failed', e); }
+  }
+
+  function openChatModal(){
+    const root = document.getElementById('modalRoot');
+    root.innerHTML = `
+      <div id="chatModalBackdrop" class="fixed inset-0 bg-black/40 flex items-center justify-center z-60">
+        <div class="bg-white rounded-lg shadow-lg w-11/12 max-w-md p-4">
+          <div class="flex items-start justify-between mb-2">
+            <div class="font-semibold">Chat / Feedback</div>
+            <button id="closeChat" class="text-slate-500">✕</button>
+          </div>
+          <div>
+            <label class="text-sm">Your name (optional)</label>
+            <input id="chatName" class="w-full mt-1 p-2 border rounded-md" placeholder="Your name" />
+            <label class="text-sm mt-3">Message</label>
+            <textarea id="chatMsg" class="w-full mt-1 p-2 border rounded-md" rows="4" placeholder="How can we help?"></textarea>
+            <div class="flex gap-2 mt-4 justify-end">
+              <button id="cancelChat" class="px-3 py-2 border rounded-md">Cancel</button>
+              <button id="sendChat" class="px-3 py-2 bg-indigo-600 text-white rounded-md">Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('closeChat').addEventListener('click', ()=> document.getElementById('modalRoot').innerHTML = '');
+    document.getElementById('cancelChat').addEventListener('click', ()=> document.getElementById('modalRoot').innerHTML = '');
+    document.getElementById('sendChat').addEventListener('click', ()=>{
+      const name = document.getElementById('chatName').value.trim();
+      const msg = document.getElementById('chatMsg').value.trim();
+      if(!msg){ alert('Please write a message.'); return; }
+      const payload = { name: name || 'Anonymous', message: msg, ts: Date.now() };
+      // try save to firebase feedback node if available, else local
+      if(db){
+        try{
+          db.ref('feedback').push(payload).then(()=>{ alert('Thanks — your message was sent.'); document.getElementById('modalRoot').innerHTML = ''; });
+        }catch(e){ saveFeedbackLocal(payload); alert('Saved locally (offline).'); document.getElementById('modalRoot').innerHTML = ''; }
+      } else {
+        saveFeedbackLocal(payload);
+        alert('Thanks — your message was saved (demo).');
+        document.getElementById('modalRoot').innerHTML = '';
+      }
+    });
+  }
+
+  // wire chat floating button
+  try{
+    const chatBtn = document.getElementById('chatBtn');
+    if(chatBtn) chatBtn.addEventListener('click', openChatModal);
+  }catch(e){}
+
 }); // DOMContentLoaded end
+
