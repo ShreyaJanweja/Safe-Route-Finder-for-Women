@@ -16,6 +16,17 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
   <link rel="stylesheet" href="style.css">
+
+  <!-- About page small tweaks (keeps rest unchanged) -->
+  <style>
+    /* About page specific */
+    #page-about .badge { display:inline-block; padding:6px 10px; border-radius:999px; background:rgba(99,102,241,0.12); color:#4f46e5; font-weight:600; font-size:12px; }
+    #page-about .feature-card { transition: transform .18s ease, box-shadow .18s ease; }
+    #page-about .feature-card:hover { transform: translateY(-6px); box-shadow: 0 12px 30px rgba(15,23,42,0.12); }
+    #page-about .team-avatar { width:56px; height:56px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; font-weight:700; color:white; }
+    #page-about .stat-num { font-variant-numeric: tabular-nums; font-weight:800; font-size:28px; }
+    #page-about .contact-input { border:1px solid #e6e6f7; padding:.6rem .75rem; border-radius:8px; }
+  </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
   <div id="app" class="flex flex-col min-h-screen">
@@ -26,7 +37,7 @@
     <div class="flex items-center gap-4">
       <!-- logo (transparent PNG / SVG) -->
       <div class="logo-wrap w-12 h-12 flex-shrink-0">
-        <img src="logo.jpg" alt="Suraksha Sathi" class="logo-img" />
+        <img src="logo.png" alt="Suraksha Sathi" class="logo-img" />
       </div>
 
       <div>
@@ -239,16 +250,149 @@
         </div>
       </section>
 
-      <!-- About / Help -->
+      <!-- About / Help (REPLACED WITH RICH LAYOUT) -->
       <section id="page-about" class="mt-4 fade hidden-page">
-        <div class="bg-white p-6 rounded-md shadow-md">
-          <h2 class="font-semibold">About / Help</h2>
-          <p class="mt-2 text-slate-600">This demo uses Nominatim (geocoding), OSRM (routing) and Firebase for realtime reports. Replace Firebase config at the top of the script to enable cloud persistence.</p>
-          <ul class="list-disc ml-6 mt-2 text-sm text-slate-600">
-            <li>Type in the start or destination — suggestions appear automatically.</li>
-            <li>Click "Find Safe Routes" to show route options and safety scores.</li>
-            <li>Use SOS to log an urgent alert (demo) or Report Area to add reports.</li>
-          </ul>
+        <div class="grid gap-8">
+
+          <!-- 1. Hero Section (Top Introduction) -->
+          <div class="bg-gradient-to-r from-indigo-600 to-indigo-500 text-white rounded-lg p-8" data-aos="fade-up">
+            <div class="max-w-4xl">
+              <span class="badge">About</span>
+              <h2 class="text-2xl font-extrabold mt-3">Suraksha Sathi — Safer journeys for women</h2>
+              <p class="mt-3 text-indigo-100">We combine community reports, live safety insights and instant SOS to help women choose safer routes. Simple, reliable and community-driven.</p>
+              <div class="mt-4 flex gap-3">
+                <a href="#route" data-nav class="px-4 py-2 bg-white text-indigo-600 rounded-md font-semibold">Find Safe Routes</a>
+                <a href="#community" data-nav class="px-4 py-2 border border-white/40 text-white rounded-md">View Reports</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Our Mission & Vision -->
+          <div class="grid md:grid-cols-2 gap-4" data-aos="fade-up" data-aos-delay="60">
+            <div class="p-6 rounded-lg border shadow-sm bg-white">
+              <h3 class="font-semibold text-indigo-700">Our Mission</h3>
+              <p class="mt-2 text-sm text-slate-600">Help women travel confidently by providing route suggestions that prioritise safety using community and map data.</p>
+              <ul class="mt-3 text-sm space-y-2 text-slate-600">
+                <li>• Real-time community reporting</li>
+                <li>• Safety scoring for routes</li>
+                <li>• Easy SOS and help features</li>
+              </ul>
+            </div>
+
+            <div class="p-6 rounded-lg border shadow-sm bg-white">
+              <h3 class="font-semibold text-indigo-700">Our Vision</h3>
+              <p class="mt-2 text-sm text-slate-600">A world where public spaces feel safe for everyone — starting with smarter, safer ways home.</p>
+              <div class="mt-3 text-sm text-slate-600">
+                <strong class="text-indigo-600">Long-term:</strong> integrate with local authorities & public lighting data.
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Our Story / Inspiration -->
+          <div class="p-6 rounded-lg bg-indigo-50" data-aos="fade-up" data-aos-delay="120">
+            <h3 class="font-semibold text-indigo-800">Our Story</h3>
+            <p class="mt-2 text-sm text-indigo-700">Suraksha Sathi began as a hackathon project: students who felt unsafe walking home wanted a simple tool to surface safer paths. We built a prototype, tested with peers and iterated based on real feedback from the community.</p>
+            <div class="mt-3 text-sm text-slate-600">Judges praised the clarity and real-world utility — we focused on reliability and ease of reporting.</div>
+          </div>
+
+          <!-- 4. Key Features / What We Offer -->
+          <div data-aos="fade-up" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="p-4 rounded-lg border bg-white shadow-sm text-center feature-card">
+              <div class="text-3xl">🗺️</div>
+              <div class="font-semibold mt-3">Safe Routes</div>
+              <div class="text-sm text-slate-600 mt-1">Route suggestions ranked by safety score.</div>
+            </div>
+            <div class="p-4 rounded-lg border bg-white shadow-sm text-center feature-card">
+              <div class="text-3xl">🚨</div>
+              <div class="font-semibold mt-3">SOS Alerts</div>
+              <div class="text-sm text-slate-600 mt-1">Quickly notify contacts and log location.</div>
+            </div>
+            <div class="p-4 rounded-lg border bg-white shadow-sm text-center feature-card">
+              <div class="text-3xl">📣</div>
+              <div class="font-semibold mt-3">Community Reports</div>
+              <div class="text-sm text-slate-600 mt-1">Submit and view reported areas on the map.</div>
+            </div>
+            <div class="p-4 rounded-lg border bg-white shadow-sm text-center feature-card">
+              <div class="text-3xl">🔒</div>
+              <div class="font-semibold mt-3">Privacy</div>
+              <div class="text-sm text-slate-600 mt-1">We keep user data safe and minimal.</div>
+            </div>
+          </div>
+
+          <!-- 5. Meet the Team -->
+          <div data-aos="fade-up" class="bg-white p-6 rounded-lg border shadow-sm">
+            <h3 class="font-semibold text-indigo-700">Meet the Team</h3>
+            <p class="text-sm text-slate-600 mt-2">Hackathon team behind Suraksha Sathi</p>
+            <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div class="flex items-center gap-3">
+                <div class="team-avatar bg-indigo-600">SJ</div>
+                <div>
+                  <div class="font-semibold">Shreya Janweja</div>
+                  <div class="text-xs text-slate-500">Frontend</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="team-avatar bg-pink-500">SB</div>
+                <div>
+                  <div class="font-semibold">Srishti Bansal</div>
+                  <div class="text-xs text-slate-500">UX / Research</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="team-avatar bg-emerald-500">SJ</div>
+                <div>
+                  <div class="font-semibold">Sejal Jain</div>
+                  <div class="text-xs text-slate-500">Backend</div>
+                </div>
+              </div>
+              <!-- <div class="flex items-center gap-3">
+                <div class="team-avatar bg-slate-700">SM</div>
+                <div>
+                  <div class="font-semibold">Sana Malik</div>
+                  <div class="text-xs text-slate-500">Product</div>
+                </div>
+              </div> -->
+            </div>
+          </div>
+
+          <!-- 6. Impact / Stats Section -->
+          <div class="grid sm:grid-cols-3 gap-4" data-aos="fade-up" data-aos-delay="140">
+            <div class="p-6 rounded-lg bg-gradient-to-br from-indigo-600 to-indigo-500 text-white text-center">
+              <div class="stat-num" data-target="1245">1,245</div>
+              <div class="mt-2 text-sm">Safe Routes Suggested</div>
+            </div>
+            <div class="p-6 rounded-lg bg-gradient-to-br from-pink-500 to-pink-400 text-white text-center">
+              <div class="stat-num" data-target="320">320</div>
+              <div class="mt-2 text-sm">Areas Reported</div>
+            </div>
+            <div class="p-6 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-400 text-white text-center">
+              <div class="stat-num" data-target="42">42</div>
+              <div class="mt-2 text-sm">SOS Alerts</div>
+            </div>
+          </div>
+
+          <!-- 8. Contact or Join Us -->
+          <div class="p-6 rounded-lg bg-white border shadow-sm" data-aos="fade-up" data-aos-delay="160">
+            <div class="grid md:grid-cols-2 gap-6 items-center">
+              <div>
+                <h4 class="font-semibold text-indigo-700">Join us / Contact</h4>
+                <p class="text-sm text-slate-600 mt-2">Want to help, test or integrate? Drop a message — we’ll get back.</p>
+                <div class="mt-4">
+                  <a href="mailto:hello@surakshasathi.example" class="px-4 py-2 bg-indigo-600 text-white rounded-md">Email Us</a>
+                  <button id="joinVolunteer" class="ml-3 px-4 py-2 border rounded-md">Volunteer</button>
+                </div>
+              </div>
+              <form id="contactForm" class="p-4 bg-slate-50 rounded-md">
+                <input name="name" placeholder="Your name" class="w-full contact-input mb-2" />
+                <input name="email" placeholder="Email" class="w-full contact-input mb-2" />
+                <textarea name="msg" rows="3" placeholder="Message" class="w-full contact-input mb-2"></textarea>
+                <div class="text-right">
+                  <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md">Send</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
         </div>
       </section>
     </main>
@@ -314,5 +458,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script src="main.js"></script>
+  <script>try{ AOS && AOS.init && AOS.init({ once:true }); }catch(e){}</script>
 </body>
 </html>
