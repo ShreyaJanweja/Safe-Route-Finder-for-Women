@@ -1,4 +1,3 @@
- 
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -23,10 +22,12 @@
           <a href="index.html#about" class="text-sm px-3 py-1 rounded hover:bg-white/10">About</a>
         </nav>
       </div>
+
       <div class="flex items-center gap-3">
         <button class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg font-semibold shadow-md">SOS</button>
         <button class="bg-white text-indigo-600 px-4 py-2 rounded-lg font-semibold shadow-sm">Report Area</button>
-        <a href="signup.html" class="ml-3 px-4 py-2 bg-white/10 border border-white/20 rounded-md text-sm hover:bg-white/12">Signup</a>
+        <!-- dynamic auth area -->
+        <div id="navAuth" class="ml-3"></div>
       </div>
     </div>
   </header>
@@ -66,11 +67,37 @@
   </main>
 
   <script>
-    document.getElementById('yearLogin') && (document.getElementById('yearLogin').innerText = new Date().getFullYear());
+    // small helpers
     const el = id => document.getElementById(id);
+    function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
     function getUsers(){ try{ return JSON.parse(localStorage.getItem('users')||'[]'); }catch(e){ return []; } }
 
+    // render nav auth (shows profile + logout if logged in, otherwise Login/Signup)
+    function renderNavAuth(){
+      const nav = el('navAuth'); if(!nav) return;
+      const user = JSON.parse(localStorage.getItem('authUser') || 'null');
+      if(user){
+        nav.innerHTML = `
+          <a href="profile.html" class="inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded border border-white/20 text-sm hover:bg-white/12">
+            ${escapeHtml(user.username || user.email)}
+          </a>
+          <button id="logoutBtn" class="ml-2 px-3 py-1 rounded bg-white/10 border border-white/20 text-sm hover:bg-white/12">Logout</button>
+        `;
+        el('logoutBtn') && el('logoutBtn').addEventListener('click', ()=>{
+          localStorage.removeItem('authUser');
+          location.reload();
+        });
+      } else {
+        nav.innerHTML = `<a href="signup.html" class="ml-3 px-4 py-2 bg-white/10 border border-white/20 rounded-md text-sm hover:bg-white/12">Signup</a>
+                         <a href="login.html" class="ml-2 px-4 py-2 bg-white/10 border border-white/20 rounded-md text-sm hover:bg-white/12">Login</a>`;
+      }
+    }
+
+    // call on load
+    document.addEventListener('DOMContentLoaded', renderNavAuth);
+
+    // login form handling
     const loginForm = el('loginForm');
     const errorMsg = el('errorMsg');
 
@@ -82,15 +109,24 @@
       const email = (el('email') && el('email').value.trim().toLowerCase()) || '';
       const password = (el('password') && el('password').value) || '';
 
-      if(!username||!email||!password){ errorMsg && (errorMsg.textContent='Please fill in all fields before logging in.', errorMsg.classList.remove('hidden')); return; }
+      if(!username || !email || !password){
+        if(errorMsg){ errorMsg.textContent = 'Please fill in all fields before logging in.'; errorMsg.classList.remove('hidden'); }
+        return;
+      }
 
       const users = getUsers();
-      const user = users.find(u=>u.username && u.username.toLowerCase()===username.toLowerCase() && u.email===email && u.password===password);
+      const user = users.find(u => u.username && u.username.toLowerCase() === username.toLowerCase() && u.email === email && u.password === password);
 
-      if(user){ alert('Login successful. Redirecting to home.'); window.location.href='index.html'; }
-      else { errorMsg && (errorMsg.textContent='Invalid credentials. Check username/email/password.', errorMsg.classList.remove('hidden')); }
+      if(user){
+        // set auth state for navbar & profile page
+        const authUser = { username: user.username, email: user.email };
+        localStorage.setItem('authUser', JSON.stringify(authUser));
+        // redirect to home (navbar on index will read authUser)
+        window.location.href = 'index.html';
+      } else {
+        if(errorMsg){ errorMsg.textContent = 'Invalid credentials. Check username/email/password.'; errorMsg.classList.remove('hidden'); }
+      }
     });
   </script>
 </body>
 </html>
- 

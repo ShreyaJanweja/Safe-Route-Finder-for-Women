@@ -59,7 +59,8 @@
       <button id="btnReport" class="bg-white text-indigo-600 px-4 py-2 rounded-lg font-semibold shadow-sm">Report Area</button>
       <!-- mobile nav toggle (optional) -->
        <!-- NEW: Login / Signup -->
-      <a href="login.html" class="ml-3 px-4 py-2 bg-white/10 border border-white/20 rounded-md text-sm hover:bg-white/12">Login / Signup</a>
+      <!-- <a href="login.html" class="ml-3 px-4 py-2 bg-white/10 border border-white/20 rounded-md text-sm hover:bg-white/12">Login / Signup</a> -->
+       <div id="navAuth" class="ml-3"></div>
     </div>
   </div>
 </header>
@@ -454,5 +455,22 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script src="main.js"></script>
   <script>try{ AOS && AOS.init && AOS.init({ once:true }); }catch(e){}</script>
+
+
+  <script>
+(function(){
+  function el(id){ return document.getElementById(id); }
+  function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  const nav = el('navAuth'); if(!nav) return;
+  const user = JSON.parse(localStorage.getItem('authUser')||'null');
+  if(user){
+    nav.innerHTML = `<a href="profile.html" class="inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded text-sm">${escapeHtml(user.username||user.email)}</a>
+                     <button id="logoutBtn" class="ml-2 px-3 py-1 rounded bg-white/10 text-sm">Logout</button>`;
+    el('logoutBtn') && el('logoutBtn').addEventListener('click', ()=>{ localStorage.removeItem('authUser'); location.reload(); });
+  } else {
+    nav.innerHTML = `<a href="login.html" class="ml-3 px-4 py-2 bg-white/10 rounded-md text-sm">Login / Signup</a>`;
+  }
+})();
+</script>
 </body>
 </html>
