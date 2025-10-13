@@ -25,7 +25,7 @@
   <label>Set your custom voice command (example: help me 123)</label>
   <input id="voiceCmd" placeholder="Type your voice command" />
 
-  <label>Emergency Contact (Name,Phone,Relation)</label>
+  <label>Emergency Contact (Name, Phone, Relation)</label>
   <div class="row">
     <input id="cName" placeholder="Name" />
     <input id="cPhone" placeholder="+91XXXXXXXXXX" />
@@ -48,12 +48,12 @@ const contactList = document.getElementById('contactList');
 const startBtn = document.getElementById('startListening');
 const status = document.getElementById('status');
 
+// ---- Load saved settings ----
 function load() {
   const cmd = localStorage.getItem('sos_cmd') || '';
   voiceCmdInput.value = cmd;
   renderContacts();
 }
-
 function saveCmd() {
   localStorage.setItem('sos_cmd', voiceCmdInput.value.trim());
 }
@@ -73,7 +73,6 @@ function renderContacts() {
     li.textContent = `${c.name} — ${c.phone} (${c.relation}) `;
     const btn = document.createElement('button');
     btn.textContent = 'Remove';
-    btn.style.marginLeft = '8px';
     btn.addEventListener('click', () => {
       arr.splice(i, 1);
       saveContacts(arr);
@@ -84,18 +83,19 @@ function renderContacts() {
   });
 }
 
+// ---- Add contact ----
 addContactBtn.addEventListener('click', () => {
   const name = document.getElementById('cName').value.trim();
   const phone = document.getElementById('cPhone').value.trim();
   const relation = document.getElementById('cRelation').value.trim();
   if (!name || !phone) {
-    alert('Enter name and phone');
+    alert('Enter name and phone number');
     return;
   }
-  // Simple phone validation (Indian number format)
+  // Validate phone format (+91 or 10–15 digits)
   const phoneRegex = /^\+?\d{10,15}$/;
   if (!phoneRegex.test(phone)) {
-    alert('Enter valid phone number (with country code)');
+    alert('Enter a valid phone number (with country code)');
     return;
   }
   const arr = getContacts();
@@ -107,8 +107,10 @@ addContactBtn.addEventListener('click', () => {
   document.getElementById('cRelation').value = '';
 });
 
-// ------- Speech recognition -------
+// ---- Speech Recognition ----
 let recognition = null;
+let listening = false;
+
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SpeechRecognition();
@@ -127,10 +129,10 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     status.textContent = 'Error: ' + e.error;
   };
 
+  // Auto-restart if still listening
   recognition.onend = () => {
     status.textContent = 'Listener stopped';
     if (listening) {
-      // Automatically restart recognition to keep listening continuously
       recognition.start();
       status.textContent = 'Listening...';
     }
@@ -139,14 +141,15 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   status.textContent = 'SpeechRecognition not supported in this browser';
 }
 
+// ---- Check voice command ----
 function checkCommand(spoken) {
   const cmd = (localStorage.getItem('sos_cmd') || '').toLowerCase();
   if (!cmd) {
-    console.log('No voice command set');
+    console.log('No command set');
     return;
   }
   if (spoken.toLowerCase().includes(cmd)) {
-    status.textContent = 'Trigger matched! Preparing messages...';
+    status.textContent = 'Trigger matched! Sending SOS...';
     playSOSSound();
     document.body.classList.add('alert-glow');
     setTimeout(() => document.body.classList.remove('alert-glow'), 5000);
@@ -154,19 +157,22 @@ function checkCommand(spoken) {
   }
 }
 
-// --- Play emergency sound ---
+// ---- Play alert sound ----
 function playSOSSound() {
   const audio = new Audio('https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg');
   audio.play().catch(() => {});
 }
 
-/* Fallback send: open sms: links (with live location link)
-   Message will be prefilled. User must tap send (browser security).
-*/
+// ---- Trigger SOS ----
 function triggerSOS() {
   const contacts = getContacts();
   if (!contacts.length) {
     alert('No contacts saved');
+    return;
+  }
+
+  if (!navigator.geolocation) {
+    alert('Geolocation not supported on this device');
     return;
   }
 
@@ -185,8 +191,7 @@ function triggerSOS() {
   });
 }
 
-// start/stop listener
-let listening = false;
+// ---- Start / Stop listener ----
 startBtn.addEventListener('click', () => {
   if (!recognition) {
     alert('SpeechRecognition not available on your browser');
@@ -204,7 +209,7 @@ startBtn.addEventListener('click', () => {
   }
 });
 
-// initial load
+// ---- Initial Load ----
 load();
 </script>
 </body>
