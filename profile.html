@@ -56,6 +56,13 @@
     .sos-heard { margin-top:8px; font-size:0.95rem; color:#0f172a; }
     .sos-heard .line { padding:6px 8px; background:#f8fafc; border-radius:6px; margin-top:6px; border:1px solid #e6eef7; }
 
+  /* full-screen flashing red overlay for emergency */
+  .sos-overlay{position:fixed;inset:0;z-index:1150;background:rgba(239,68,68,0.0);pointer-events:none;opacity:0;transition:opacity .12s linear}
+  .sos-overlay.show{opacity:1;pointer-events:auto;animation:sosFlash 0.6s ease-in-out infinite}
+  @keyframes sosFlash{0%{background:rgba(239,68,68,0.18)}50%{background:rgba(239,68,68,0.45)}100%{background:rgba(239,68,68,0.18)}}
+
+  .sos-stop-btn{display:inline-block;margin-top:8px;padding:6px 10px;border-radius:8px;background:#111827;color:#fff;font-weight:600;cursor:pointer}
+
     /* small visual glow when triggered */
     .alert-glow { box-shadow: 0 0 0 6px rgba(239,68,68,0.06) inset, 0 6px 30px rgba(0,0,0,0.06); }
   </style>
@@ -147,6 +154,11 @@
             <div class="desc">We've prepared messages for your emergency contacts. Please confirm sending on your device.</div>
           </div>
           <div id="sosToast" class="sos-toast" aria-hidden="true">SOS messages opened in your SMS app</div>
+          <!-- full-screen overlay & stop alarm control -->
+          <div id="sosOverlay" class="sos-overlay" aria-hidden="true"></div>
+          <div id="sosControls" style="position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:1250;pointer-events:none;">
+            <button id="stopAlarmBtn" class="sos-stop-btn" style="pointer-events:auto;display:none;">Stop Alarm</button>
+          </div>
         </div>
       </section>
 
@@ -517,7 +529,9 @@
         if(!cmd) { console.log('no cmd set'); return; }
         if (spoken.toLowerCase().includes(cmd)) {
           if(status) status.textContent = 'Trigger matched! Preparing messages...';
+          // short alarm sound
           playSOSSound();
+          // visual glow
           document.body.classList.add('alert-glow');
           setTimeout(()=>document.body.classList.remove('alert-glow'),5000);
 
@@ -528,6 +542,9 @@
           setTimeout(()=>{ if(m){ m.classList.remove('show'); m.setAttribute('aria-hidden','true'); } }, 5000);
           setTimeout(()=>{ if(t){ t.classList.remove('show'); t.setAttribute('aria-hidden','true'); } }, 4200);
 
+          // start persistent buzzer + flashing overlay
+          try{ startBuzzer(); }catch(e){ console.warn('buzzer failed', e); }
+
           triggerSOS();
         }
       }
@@ -536,6 +553,38 @@
       function playSOSSound(){
         try{ const audio = new Audio('https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg'); audio.play().catch(()=>{}); }catch(e){}
       }
+
+      // --- persistent buzzer + overlay (snooze-able) ---
+      let _buzzerAudio = null;
+      let _buzzerPlaying = false;
+      function startBuzzer(){
+        if(_buzzerPlaying) return;
+        try{
+          _buzzerAudio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+          _buzzerAudio.loop = true;
+          _buzzerAudio.volume = 0.8;
+          _buzzerAudio.play().catch(()=>{});
+          _buzzerPlaying = true;
+        }catch(e){ console.warn('buzzer audio error', e); }
+        // show overlay and stop button
+        const overlay = el('sosOverlay');
+        const stopBtn = el('stopAlarmBtn');
+        if(overlay){ overlay.classList.add('show'); overlay.setAttribute('aria-hidden','false'); }
+        if(stopBtn){ stopBtn.style.display = 'inline-block'; stopBtn.style.pointerEvents = 'auto'; }
+      }
+
+      function stopBuzzer(){
+        try{ if(_buzzerAudio){ _buzzerAudio.pause(); _buzzerAudio.currentTime = 0; } }catch(e){}
+        _buzzerPlaying = false;
+        const overlay = el('sosOverlay');
+        const stopBtn = el('stopAlarmBtn');
+        if(overlay){ overlay.classList.remove('show'); overlay.setAttribute('aria-hidden','true'); }
+        if(stopBtn){ stopBtn.style.display = 'none'; stopBtn.style.pointerEvents = 'none'; }
+      }
+
+      // stop alarm button
+      const stopAlarmBtn = el('stopAlarmBtn');
+      if(stopAlarmBtn){ stopAlarmBtn.addEventListener('click', function(){ stopBuzzer(); if(status) status.textContent = 'Alarm stopped'; }); }
 
       /* Fallback send: open sms: links (with live location link)
          Message will be prefilled. User must tap send (browser security).
