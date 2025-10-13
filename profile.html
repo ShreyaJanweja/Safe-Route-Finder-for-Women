@@ -5,7 +5,76 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Profile — Suraksha Sathi</title>
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Scoped CSS: modal sizing, overflow & layout fixes -->
+  <style>
+    /* Ensure global box-sizing is predictable inside this page */
+    html, body { box-sizing: border-box; }
+    *, *::before, *::after { box-sizing: inherit; }
+
+    /* Modal sizing & content box fixes - applied to inner container */
+    .modal-inner {
+      max-height: 78vh;     /* keep modal inside viewport */
+      overflow: auto;       /* scroll inside modal if content is tall */
+      padding: 1.25rem;     /* consistent inner padding */
+      box-sizing: border-box;
+    }
+
+    /* Keep inputs/selects/buttons from forcing horizontal scroll */
+    .modal-inner input,
+    .modal-inner select,
+    .modal-inner button {
+      box-sizing: border-box;
+      min-width: 0;
+    }
+
+    /* Prevent long words or numbers from overflowing */
+    .modal-inner .ec-card, .modal-inner .ec-card * {
+      word-break: break-word;
+    }
+
+    /* Make the save button not wrap and align nicely */
+    .ec-save-btn { white-space: nowrap; }
+
+  /* Ensure placeholder text is visible and subdued across browsers */
+  .modal-inner ::-webkit-input-placeholder { color: #94a3b8; }
+  .modal-inner ::-moz-placeholder { color: #94a3b8; }
+  .modal-inner :-ms-input-placeholder { color: #94a3b8; }
+  .modal-inner ::placeholder { color: #94a3b8; }
+
+  /* Improve save button alignment in grid */
+  .ec-save-wrapper, .ec-save-btn { display: inline-flex; align-items: center; justify-content: center; }
+
+    /* Remove default outline on focus for better Tailwind-like styling */
+    .modal-inner input:focus,
+    .modal-inner select:focus,
+    .modal-inner button:focus {
+      outline: 3px solid rgba(99,102,241,0.12);
+      outline-offset: 2px;
+    }
+
+    /* Small screen adjustments */
+    @media (max-width: 640px) {
+      .modal-inner { padding: 0.75rem; max-height: 85vh; }
+      .ec-row { flex-direction: column; gap: 0.5rem; }
+      .ec-save-wrapper { justify-content: flex-end; }
+    }
+
+    /* scoped card style for saved contacts */
+    .ec-card {
+      background: #fff0f6;
+      border: 1px solid #ffd6e7;
+      color: #372b2f;
+    }
+
+    .ec-remove { cursor:pointer; color:#e11d48; font-weight:600; background:transparent; border:0; }
+
+  /* slight backdrop dim z-index safety */
+  /* escape slash in class name so CSS is valid */
+  .fixed.inset-0.bg-black\/40 { z-index: 999; }
+  </style>
 </head>
+
 <body id="pageBody" class="bg-slate-100 min-h-screen text-slate-800">
   <!-- HEADER with Back + Logo -->
   <header class="bg-gradient-to-r from-indigo-600 to-indigo-400 text-white p-4 shadow-md">
@@ -53,16 +122,17 @@
 
         <div class="mt-6">
           <h3 class="text-sm font-semibold text-slate-600">Emergency Contacts</h3>
-          <ul id="emergencyList" class="mt-2 space-y-2 text-sm text-slate-700"></ul>
 
-          <form id="emergencyForm" class="mt-3 grid grid-cols-1 gap-2">
-            <input id="emergencyName" type="text" placeholder="Name" class="px-3 py-2 border rounded" />
-            <input id="emergencyPhone" type="tel" placeholder="Phone (10 digits)" class="px-3 py-2 border rounded" inputmode="numeric" />
-            <div class="flex gap-2">
-              <button type="submit" class="px-3 py-2 bg-indigo-600 text-white rounded">Add</button>
-              <button id="clearContacts" type="button" class="px-3 py-2 bg-white border rounded">Clear All</button>
-            </div>
-          </form>
+          <div class="mt-3">
+            <p class="text-xs text-slate-400 mb-3">Manage trusted contacts who will be notified in an emergency. Contacts are saved to your account.</p>
+            <button id="openECModal" class="inline-flex items-center gap-3 px-4 py-2 rounded-md bg-pink-600 hover:bg-pink-700 text-white shadow">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8.5v7a2.5 2.5 0 002.5 2.5h13A2.5 2.5 0 0021 15.5v-7A2.5 2.5 0 0018.5 6h-13A2.5 2.5 0 003 8.5zM8 12h8M8 15h5" /></svg>
+              Manage Emergency Contacts
+            </button>
+          </div>
+
+          <!-- Inline small list (account-specific) -->
+          <ul id="emergencyList" class="mt-4 space-y-2 text-sm text-slate-700"></ul>
         </div>
       </section>
 
@@ -106,7 +176,7 @@
               </div>
               <label class="inline-flex items-center cursor-pointer">
                 <input id="toggleNotifications" type="checkbox" class="sr-only" />
-                <span id="notifSpan" class="w-11 h-6 rounded-full bg-slate-300 relative transition-colors"></span>
+                <span id="notifSpan" class="w-11 h-6 rounded-full bg-slate-300 relative transition-colors" aria-hidden="true"></span>
               </label>
             </div>
 
@@ -129,7 +199,7 @@
               </div>
               <label class="inline-flex items-center cursor-pointer">
                 <input id="toggleDark" type="checkbox" class="sr-only" />
-                <span id="darkSwitch" class="w-11 h-6 rounded-full bg-slate-300 relative transition-colors"></span>
+                <span id="darkSwitch" class="w-11 h-6 rounded-full bg-slate-300 relative transition-colors" aria-hidden="true"></span>
               </label>
             </div>
           </div>
@@ -142,9 +212,9 @@
     <div class="max-w-6xl mx-auto text-center text-xs text-slate-500 py-4">© <span id="year">2025</span> Suraksha Sathi — Your Safety , Our Priority</div>
   </footer>
 
-  <!-- Edit & Pwd Modals (kept same) -->
+  <!-- Edit Modal -->
   <div id="modalEdit" class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 hidden z-50">
-    <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+    <div class="bg-white rounded-lg shadow-lg w-full max-w-md modal-inner">
       <h3 class="text-lg font-semibold mb-3">Edit Profile</h3>
       <form id="editForm" class="space-y-3">
         <input id="editUsername" type="text" class="w-full px-3 py-2 border rounded" placeholder="Username" />
@@ -157,8 +227,9 @@
     </div>
   </div>
 
+  <!-- Change Password Modal -->
   <div id="modalPwd" class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 hidden z-50">
-    <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+    <div class="bg-white rounded-lg shadow-lg w-full max-w-md modal-inner">
       <h3 class="text-lg font-semibold mb-3">Change Password</h3>
       <form id="pwdForm" class="space-y-3">
         <input id="currentPwd" type="password" class="w-full px-3 py-2 border rounded" placeholder="Current password" />
@@ -172,9 +243,82 @@
     </div>
   </div>
 
+  <!-- Emergency Contacts Modal -->
+  <div id="ecModal" class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 hidden z-50">
+    <div class="bg-white rounded-lg shadow-lg w-full max-w-2xl modal-inner">
+      <div class="flex items-start justify-between">
+        <h3 class="text-lg font-semibold">Emergency Contacts</h3>
+        <button id="closeECModal" class="text-slate-500 hover:text-slate-700" aria-label="Close">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-400 mt-2">Add the people you'd like to notify in an emergency. These contacts are saved per account.</p>
+
+      <form id="ecForm" class="mt-4">
+        <div class="grid grid-cols-12 gap-2 items-center ec-row">
+          <!-- Name (larger) -->
+          <div class="col-span-12 md:col-span-5">
+            <input id="ecName" type="text" placeholder="Name" class="w-full px-3 py-2 border rounded text-slate-700 placeholder-slate-400" />
+          </div>
+
+          <!-- Country code -->
+          <div class="col-span-6 md:col-span-2">
+            <select id="countrySelect" class="w-full px-3 py-2 border rounded text-sm text-slate-700">
+              <option value="+91">🇮🇳 IN +91 (India)</option>
+              <option value="+1">🇺🇸 US +1 (USA)</option>
+              <option value="+44">🇬🇧 GB +44 (UK)</option>
+              <option value="+61">🇦🇺 AU +61 (Australia)</option>
+              <option value="+81">🇯🇵 JP +81 (Japan)</option>
+              <option value="+49">🇩🇪 DE +49 (Germany)</option>
+              <option value="+33">🇫🇷 FR +33 (France)</option>
+              <option value="+971">🇦🇪 AE +971 (UAE)</option>
+              <option value="+7">🇷🇺 RU +7 (Russia)</option>
+              <option value="+86">🇨🇳 CN +86 (China)</option>
+            </select>
+          </div>
+
+          <!-- Phone number -->
+          <div class="col-span-6 md:col-span-3">
+            <input id="ecPhone" type="tel" placeholder="Phone Number" class="w-full px-3 py-2 border rounded text-slate-700 placeholder-slate-400" />
+          </div>
+
+          <!-- Relation + Save button grouped -->
+          <div class="col-span-12 md:col-span-2 flex items-center gap-2">
+            <select id="relationSelect" class="flex-1 px-3 py-2 border rounded text-sm text-slate-700">
+              <option value="">Relation</option>
+              <option value="Friend">Friend</option>
+              <option value="Mother">Mother</option>
+              <option value="Sister">Sister</option>
+              <option value="Brother">Brother</option>
+              <option value="Father">Father</option>
+              <option value="Boyfriend">Boyfriend</option>
+              <option value="Uncle">Uncle</option>
+              <option value="Aunt">Aunt</option>
+              <option value="Other">Other</option>
+            </select>
+
+            <button id="saveContactBtn" type="submit" class="px-3 py-2 rounded-md bg-pink-600 hover:bg-pink-700 text-white ec-save-btn w-24 text-center">Save</button>
+          </div>
+        </div>
+      </form>
+
+      <div class="mt-4">
+        <div class="flex items-center justify-between">
+          <h4 class="font-semibold">Saved Contacts</h4>
+          <div class="flex items-center gap-2">
+            <button id="clearAllEC" class="px-3 py-1 rounded border text-sm">Clear All</button>
+          </div>
+        </div>
+
+        <ul id="ecList" class="mt-3 space-y-3"></ul>
+      </div>
+    </div>
+  </div>
+
   <script>
     (function(){
-      // Back button behavior (same logic used across pages)
+      // Back button behavior
       document.addEventListener('DOMContentLoaded', function () {
         const backBtn = document.getElementById('btnBack');
         if (backBtn) {
@@ -194,12 +338,12 @@
         }
       });
 
-      // safe helpers
+      // helpers
       const esc = s => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const el = id => document.getElementById(id);
       function getUsers(){ try{ return JSON.parse(localStorage.getItem('users')||'[]'); }catch(e){ return []; } }
 
-      // auth check
+      // auth check (redirect if not logged in)
       const authUser = JSON.parse(localStorage.getItem('authUser') || 'null');
       if(!authUser){ window.location.href = 'login.html'; return; }
 
@@ -214,7 +358,7 @@
         logoutBtn && logoutBtn.addEventListener('click', ()=>{ localStorage.removeItem('authUser'); window.location.href = 'login.html'; });
       }
 
-      // find full user record
+      // user record
       const users = getUsers();
       const me = users.find(u => u.email === authUser.email) || { username: authUser.username, email: authUser.email, created: Date.now() };
 
@@ -250,50 +394,118 @@
         }
         const list = el('activityList');
         if(!list) return;
-        list.innerHTML = acts.slice(0,6).map(a => `<li class="p-3 rounded bg-slate-50 flex justify-between items-start">
-          <div>${esc(a.text)}</div><div class="text-xs text-slate-400">${new Date(a.when).toLocaleString()}</div></li>`).join('');
+        list.innerHTML = acts.slice(0,6).map(a => `<li class="p-3 rounded bg-slate-50 flex justify-between items-start"><div>${esc(a.text)}</div><div class="text-xs text-slate-400">${new Date(a.when).toLocaleString()}</div></li>`).join('');
       }
       loadActivity();
 
-      // emergency contacts
-      function loadContacts(){
-        let c = [];
-        try{ c = JSON.parse(localStorage.getItem('emergencyContacts')||'[]'); }catch(e){ c = []; }
+      // ----- Emergency Contacts modal + per-user persistence -----
+      const ecModal = el('ecModal'), openECModal = el('openECModal'), closeECModal = el('closeECModal');
+      const ecForm = el('ecForm'), ecName = el('ecName'), ecPhone = el('ecPhone'), countrySelect = el('countrySelect'), relationSelect = el('relationSelect');
+      const saveContactBtn = el('saveContactBtn'), ecList = el('ecList'), clearAllEC = el('clearAllEC');
+
+      // per-user key
+      const EC_KEY = 'emergencyContacts_' + (authUser.email || authUser.username || 'default');
+
+      function readEC(){
+        try{ return JSON.parse(localStorage.getItem(EC_KEY) || '[]'); }catch(e){ return []; }
+      }
+      function writeEC(arr){ localStorage.setItem(EC_KEY, JSON.stringify(arr)); }
+
+      function renderECs(){
+        const arr = readEC();
+        if(!ecList) return;
+        if(!arr.length){
+          ecList.innerHTML = '<li class="text-xs text-slate-400">No emergency contacts yet.</li>';
+          return;
+        }
+        ecList.innerHTML = arr.map((c, idx) => `
+          <li class="p-3 rounded ec-card flex justify-between items-start">
+            <div>
+              <div class="font-semibold">${esc(c.name)}</div>
+              <div class="text-sm text-slate-600">Phone: ${esc(c.country)} ${esc(c.phone)}</div>
+              <div class="text-sm text-slate-600">Relation: ${esc(c.relation)}</div>
+            </div>
+            <div class="ml-4 text-sm">
+              <button class="ec-remove" data-idx="${idx}" title="Remove contact">✖</button>
+            </div>
+          </li>
+        `).join('');
+        const removes = ecList.querySelectorAll('.ec-remove');
+        removes.forEach(btn => btn.addEventListener('click', function(){
+          const i = Number(this.getAttribute('data-idx'));
+          const list = readEC();
+          if(i>=0 && i<list.length){
+            list.splice(i,1);
+            writeEC(list);
+            renderECs();
+            renderInlineECList();
+          }
+        }));
+      }
+
+      openECModal && openECModal.addEventListener('click', ()=>{ ecModal && ecModal.classList.remove('hidden'); renderECs(); renderInlineECList(); });
+      closeECModal && closeECModal.addEventListener('click', ()=>{ ecModal && ecModal.classList.add('hidden'); });
+
+      document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ ecModal && ecModal.classList.add('hidden'); modalEdit && modalEdit.classList.add('hidden'); modalPwd && modalPwd.classList.add('hidden'); }});
+
+      ecForm && ecForm.addEventListener('submit', function(e){
+        e.preventDefault();
+        const name = (ecName.value || '').trim();
+        const phoneRaw = (ecPhone.value || '').replace(/\D/g,'').trim();
+        const country = countrySelect.value || '';
+        const relation = relationSelect.value || '';
+
+        if(!name){ alert('Please enter a name'); ecName.focus(); return; }
+        if(!phoneRaw){ alert('Please enter a phone number'); ecPhone.focus(); return; }
+        if(!relation){ alert('Please select relation'); relationSelect.focus(); return; }
+
+        const list = readEC();
+        const exists = list.some(it => it.phone === phoneRaw && it.country === country);
+        if(exists){ alert('This contact already exists.'); return; }
+
+        list.push({ id: Date.now(), name, phone: phoneRaw, country, relation });
+        writeEC(list);
+        renderECs();
+        ecForm.reset();
+        renderInlineECList();
+      });
+
+      clearAllEC && clearAllEC.addEventListener('click', function(){
+        if(!confirm('Clear all emergency contacts for this account?')) return;
+        localStorage.removeItem(EC_KEY);
+        renderECs();
+        renderInlineECList();
+      });
+
+      function renderInlineECList(){
         const ul = el('emergencyList');
         if(!ul) return;
-        if(!c.length) ul.innerHTML = '<li class="text-xs text-slate-400">No emergency contacts yet.</li>';
-        else ul.innerHTML = c.map((ct, i)=>`<li class="flex items-center justify-between bg-slate-50 p-2 rounded">
-          <div><div class="font-medium">${esc(ct.name)}</div><div class="text-xs text-slate-500">${esc(ct.phone)}</div></div>
+        const arr = readEC();
+        if(!arr.length){
+          ul.innerHTML = '<li class="text-xs text-slate-400">No emergency contacts yet. Click "Manage Emergency Contacts" to add.</li>';
+          return;
+        }
+        ul.innerHTML = arr.map((ct, i)=>`<li class="flex items-center justify-between bg-slate-50 p-2 rounded">
+          <div><div class="font-medium">${esc(ct.name)}</div><div class="text-xs text-slate-500">${esc(ct.country)} ${esc(ct.phone)}</div></div>
           <button data-i="${i}" class="removeContact text-red-500 text-sm">Remove</button>
         </li>`).join('');
         ul.querySelectorAll('.removeContact').forEach(btn=>{
-          btn.addEventListener('click', ()=> {
+          btn.addEventListener('click', ()=>{
             const idx = Number(btn.dataset.i);
-            c.splice(idx,1);
-            localStorage.setItem('emergencyContacts', JSON.stringify(c));
-            loadContacts();
+            const arr2 = readEC();
+            arr2.splice(idx,1);
+            writeEC(arr2);
+            renderInlineECList();
+            renderECs();
           });
         });
       }
-      loadContacts();
 
-      // add contact
-      const emergencyForm = el('emergencyForm');
-      emergencyForm && emergencyForm.addEventListener('submit', function(e){
-        e.preventDefault();
-        const name = (el('emergencyName') && el('emergencyName').value.trim()) || '';
-        const phone = (el('emergencyPhone') && el('emergencyPhone').value.trim()) || '';
-        if(!name || !/^\d{10}$/.test(phone)){ alert('Enter name and 10-digit phone.'); return; }
-        const arr = JSON.parse(localStorage.getItem('emergencyContacts')||'[]');
-        arr.unshift({ name, phone });
-        localStorage.setItem('emergencyContacts', JSON.stringify(arr));
-        el('emergencyName') && (el('emergencyName').value = '');
-        el('emergencyPhone') && (el('emergencyPhone').value = '');
-        loadContacts();
-      });
+      // initial render
+      renderECs();
+      renderInlineECList();
 
-      const clearBtn = el('clearContacts');
-      clearBtn && clearBtn.addEventListener('click', ()=>{ if(confirm('Clear all emergency contacts?')){ localStorage.removeItem('emergencyContacts'); loadContacts(); } });
+      // ----- end emergency contacts -----
 
       // settings load/save
       const defaultSettings = { notifications: true, privacy: 'contacts', dark: false };
