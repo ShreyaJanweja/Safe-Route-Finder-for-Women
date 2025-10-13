@@ -67,6 +67,35 @@
   </main>
 
   <script>
+    // shared success modal helper (paste this into your <script> — only once per page)
+    function createSuccessModalIfNeeded(){
+      if(document.getElementById('successModal')) return;
+      const div = document.createElement('div');
+      div.id = 'successModal';
+      div.className = 'fixed inset-0 flex items-center justify-center z-50 pointer-events-none';
+      div.innerHTML = `
+        <div class="bg-black/40 absolute inset-0 transition-opacity"></div>
+        <div class="relative bg-white rounded-lg shadow-xl max-w-sm w-[90%] p-6 text-center pointer-events-auto">
+          <h3 id="successModalTitle" class="text-xl font-semibold text-indigo-700">Success</h3>
+          <p id="successModalSub" class="mt-2 text-sm text-slate-600">Redirecting...</p>
+        </div>
+      `;
+      document.body.appendChild(div);
+    }
+
+    function showSuccess(message, submessage, redirectUrl, delay){
+      createSuccessModalIfNeeded();
+      const modal = document.getElementById('successModal');
+      if(!modal) return;
+      document.getElementById('successModalTitle').textContent = message || 'Success';
+      document.getElementById('successModalSub').textContent = submessage || 'Redirecting...';
+      modal.classList.remove('hidden');
+      // small visual tweak
+      const card = modal.querySelector('.relative');
+      if(card) card.style.transform = 'translateY(0)';
+      if(redirectUrl){ setTimeout(()=> { window.location.href = redirectUrl; }, typeof delay === 'number' ? delay : 1400); }
+    }
+
     // small helpers
     const el = id => document.getElementById(id);
     function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -121,8 +150,8 @@
         // set auth state for navbar & profile page
         const authUser = { username: user.username, email: user.email };
         localStorage.setItem('authUser', JSON.stringify(authUser));
-        // redirect to home (navbar on index will read authUser)
-        window.location.href = 'index.html';
+        // show success modal then redirect to home
+        showSuccess('Login successful!', 'Redirecting...', 'index.html', 1400);
       } else {
         if(errorMsg){ errorMsg.textContent = 'Invalid credentials. Check username/email/password.'; errorMsg.classList.remove('hidden'); }
       }

@@ -7,12 +7,28 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body id="pageBody" class="bg-slate-100 min-h-screen text-slate-800">
-  <!-- Header (auth area rendered by script) -->
+  <!-- HEADER with Back + Logo -->
   <header class="bg-gradient-to-r from-indigo-600 to-indigo-400 text-white p-4 shadow-md">
     <div class="max-w-6xl mx-auto flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="text-lg font-semibold">Suraksha Sathi</div>
+      <div class="flex items-center gap-4">
+        <button id="btnBack" aria-label="Back" class="inline-flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded text-sm">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path>
+          </svg>
+          <span class="hidden sm:inline">Back</span>
+        </button>
+
+        <a href="index.html" class="flex items-center gap-3">
+          <div class="w-10 h-10 flex-shrink-0">
+            <img src="logo.png" alt="Suraksha Sathi" class="w-full h-full object-cover rounded-full" />
+          </div>
+          <div class="hidden sm:block">
+            <div class="text-lg font-semibold leading-tight text-white">Suraksha Sathi</div>
+            <div class="text-xs opacity-90 -mt-0.5 text-white">Because Every Journey Deserves Safety</div>
+          </div>
+        </a>
       </div>
+
       <div id="navAuth" class="ml-3"></div>
     </div>
   </header>
@@ -122,12 +138,11 @@
     </div>
   </main>
 
-  <!-- Footer -->
   <footer class="mt-8">
     <div class="max-w-6xl mx-auto text-center text-xs text-slate-500 py-4">© <span id="year">2025</span> Suraksha Sathi — Demo profile</div>
   </footer>
 
-  <!-- Edit Profile Modal -->
+  <!-- Edit & Pwd Modals (kept same) -->
   <div id="modalEdit" class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 hidden z-50">
     <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
       <h3 class="text-lg font-semibold mb-3">Edit Profile</h3>
@@ -142,7 +157,6 @@
     </div>
   </div>
 
-  <!-- Change Password Modal -->
   <div id="modalPwd" class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 hidden z-50">
     <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
       <h3 class="text-lg font-semibold mb-3">Change Password</h3>
@@ -160,6 +174,26 @@
 
   <script>
     (function(){
+      // Back button behavior (same logic used across pages)
+      document.addEventListener('DOMContentLoaded', function () {
+        const backBtn = document.getElementById('btnBack');
+        if (backBtn) {
+          backBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            try {
+              if (window.history && window.history.length > 1) { window.history.back(); return; }
+              if (document.referrer) {
+                try {
+                  const r = new URL(document.referrer);
+                  if (r.origin === location.origin) { window.location.href = document.referrer; return; }
+                } catch (err) {}
+              }
+              window.location.href = 'index.html';
+            } catch (err) { window.location.href = 'index.html'; }
+          });
+        }
+      });
+
       // safe helpers
       const esc = s => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const el = id => document.getElementById(id);
@@ -169,7 +203,7 @@
       const authUser = JSON.parse(localStorage.getItem('authUser') || 'null');
       if(!authUser){ window.location.href = 'login.html'; return; }
 
-      // render header auth (show profile name + logout)
+      // render header auth
       const nav = el('navAuth');
       if(nav){
         nav.innerHTML = `
@@ -232,7 +266,6 @@
           <div><div class="font-medium">${esc(ct.name)}</div><div class="text-xs text-slate-500">${esc(ct.phone)}</div></div>
           <button data-i="${i}" class="removeContact text-red-500 text-sm">Remove</button>
         </li>`).join('');
-        // attach remove handlers
         ul.querySelectorAll('.removeContact').forEach(btn=>{
           btn.addEventListener('click', ()=> {
             const idx = Number(btn.dataset.i);
@@ -260,9 +293,7 @@
       });
 
       const clearBtn = el('clearContacts');
-      clearBtn && clearBtn.addEventListener('click', ()=>{
-        if(confirm('Clear all emergency contacts?')){ localStorage.removeItem('emergencyContacts'); loadContacts(); }
-      });
+      clearBtn && clearBtn.addEventListener('click', ()=>{ if(confirm('Clear all emergency contacts?')){ localStorage.removeItem('emergencyContacts'); loadContacts(); } });
 
       // settings load/save
       const defaultSettings = { notifications: true, privacy: 'contacts', dark: false };
@@ -273,13 +304,11 @@
         if(notif) notif.checked = !!settings.notifications;
         if(privacy) privacy.value = settings.privacy || 'contacts';
         if(dark) dark.checked = !!settings.dark;
-        // dark mode apply (toggle a simple class)
         if(settings.dark){
           document.getElementById('pageBody').classList.add('dark','bg-slate-900','text-slate-100');
         } else {
           document.getElementById('pageBody').classList.remove('dark','bg-slate-900','text-slate-100');
         }
-        // update visual toggle backgrounds (optional)
         el('notifSpan') && (el('notifSpan').style.backgroundColor = settings.notifications ? '#4f46e5' : '#cbd5e1');
         el('darkSwitch') && (el('darkSwitch').style.backgroundColor = settings.dark ? '#111827' : '#cbd5e1');
       }
@@ -291,11 +320,7 @@
 
       // Edit profile modal handlers
       const modalEdit = el('modalEdit'), editForm = el('editForm');
-      el('btnEditProfile') && el('btnEditProfile').addEventListener('click', ()=>{
-        el('editUsername') && (el('editUsername').value = me.username || '');
-        el('editEmail') && (el('editEmail').value = me.email || '');
-        modalEdit && modalEdit.classList.remove('hidden');
-      });
+      el('btnEditProfile') && el('btnEditProfile').addEventListener('click', ()=>{ el('editUsername') && (el('editUsername').value = me.username || ''); el('editEmail') && (el('editEmail').value = me.email || ''); modalEdit && modalEdit.classList.remove('hidden'); });
       el('cancelEdit') && el('cancelEdit').addEventListener('click', ()=> modalEdit && modalEdit.classList.add('hidden'));
 
       editForm && editForm.addEventListener('submit', function(e){
@@ -324,7 +349,7 @@
         setTimeout(()=> location.reload(), 300);
       });
 
-      // Change password modal handlers
+      // Change password handlers
       const modalPwd = el('modalPwd'), pwdForm = el('pwdForm');
       el('btnChangePassword') && el('btnChangePassword').addEventListener('click', ()=> modalPwd && modalPwd.classList.remove('hidden'));
       el('cancelPwd') && el('cancelPwd').addEventListener('click', ()=> modalPwd && modalPwd.classList.add('hidden'));
@@ -354,4 +379,3 @@
   </script>
 </body>
 </html>
- 
