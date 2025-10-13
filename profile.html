@@ -676,24 +676,6 @@
 
       // footer year
       el('year') && (el('year').textContent = new Date().getFullYear());
-
-      // Back button navigation: navigate to homepage once per click to avoid accidental spam.
-      (function(){
-        const backBtn = el('btnBack');
-        if(!backBtn) return;
-        let busy = false;
-        backBtn.addEventListener('click', function(e){
-          e.preventDefault();
-          if(busy) return;
-          busy = true;
-          backBtn.setAttribute('aria-disabled','true');
-          backBtn.classList.add('opacity-60','pointer-events-none');
-          // Navigate to home page
-          window.location.href = 'index.html';
-          // In case navigation is blocked, re-enable after 2s
-          setTimeout(() => { busy = false; backBtn.removeAttribute('aria-disabled'); backBtn.classList.remove('opacity-60','pointer-events-none'); }, 2000);
-        });
-      })();
     })();
   </script>
 </body>
