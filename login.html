@@ -112,7 +112,7 @@
       if(!username || !email || !password){
         if(errorMsg){ errorMsg.textContent = 'Please fill in all fields before logging in.'; errorMsg.classList.remove('hidden'); }
         return;
-      }
+      } 
 
       const users = getUsers();
       const user = users.find(u => u.username && u.username.toLowerCase() === username.toLowerCase() && u.email === email && u.password === password);
