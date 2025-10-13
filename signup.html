@@ -107,6 +107,34 @@
   </main>
 
   <script>
+    // shared success modal helper (paste this into your <script> — only once per page)
+    function createSuccessModalIfNeeded(){
+      if(document.getElementById('successModal')) return;
+      const div = document.createElement('div');
+      div.id = 'successModal';
+      div.className = 'fixed inset-0 flex items-center justify-center z-50 pointer-events-none';
+      div.innerHTML = `
+        <div class="bg-black/40 absolute inset-0 transition-opacity"></div>
+        <div class="relative bg-white rounded-lg shadow-xl max-w-sm w-[90%] p-6 text-center pointer-events-auto">
+          <h3 id="successModalTitle" class="text-xl font-semibold text-indigo-700">Success</h3>
+          <p id="successModalSub" class="mt-2 text-sm text-slate-600">Redirecting...</p>
+        </div>
+      `;
+      document.body.appendChild(div);
+    }
+
+    function showSuccess(message, submessage, redirectUrl, delay){
+      createSuccessModalIfNeeded();
+      const modal = document.getElementById('successModal');
+      if(!modal) return;
+      document.getElementById('successModalTitle').textContent = message || 'Success';
+      document.getElementById('successModalSub').textContent = submessage || 'Redirecting...';
+      modal.classList.remove('hidden');
+      const card = modal.querySelector('.relative');
+      if(card) card.style.transform = 'translateY(0)';
+      if(redirectUrl){ setTimeout(()=> { window.location.href = redirectUrl; }, typeof delay === 'number' ? delay : 1400); }
+    }
+
     // small helpers + validation similar to before
     const el = id => document.getElementById(id);
     function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -191,9 +219,8 @@
       if(users.some(u=>u.email && u.email===email)){ err && (err.textContent='Email already registered.', err.classList.remove('hidden')); return; }
 
       saveUser({ username,email,phone,password,gender,created:Date.now() });
-      // success -> redirect to login (keep original behaviour)
-      alert('Account created. Redirecting to login.');
-      window.location.href='login.html';
+      // show success modal then redirect to login
+      showSuccess('Account created!', 'Redirecting to login...', 'login.html', 1400);
     });
   </script>
 </body>
