@@ -593,38 +593,92 @@
         const contacts = getContacts();
         if(!contacts || !contacts.length){ alert('No contacts saved'); return; }
 
-        if(navigator.geolocation){
-          navigator.geolocation.getCurrentPosition((pos)=>{
-            const {latitude,longitude}=pos.coords;
-            const locationLink = 'https://maps.google.com/?q=' + latitude + ',' + longitude;
-            const message = encodeURIComponent('🚨 I need help! This is an emergency. My location: ' + locationLink);
-            contacts.forEach((c)=>{
-              const phone = (c.phone || '').replace(/\s+/g,'').replace(/[^0-9+]/g,'');
-              if(!phone) return;
-              const smsUrl = 'sms:' + phone + '?body=' + message;
-              window.open(smsUrl,'_blank');
-            });
-            alert('Opened SMS composer with location for each contact.');
-          },(err)=>{
-            const message = encodeURIComponent('🚨 I need help! This is an emergency.');
-            contacts.forEach((c)=>{
-              const phone = (c.phone || '').replace(/\s+/g,'').replace(/[^0-9+]/g,'');
-              if(!phone) return;
-              const smsUrl = 'sms:' + phone + '?body=' + message;
-              window.open(smsUrl,'_blank');
-            });
-            alert('Could not get location: '+ (err && err.message ? err.message : 'unknown') + '. Opened SMS composer without location.');
-          }, { timeout: 5000 });
-        } else {
-          const message = encodeURIComponent('🚨 I need help! This is an emergency.');
+        // read optional server config (for dev you can set these on window or localStorage)
+        const serverUrl = window.SERVER_URL || localStorage.getItem('SERVER_URL') || '';
+        const serverApiKey = window.SERVER_API_KEY || localStorage.getItem('SERVER_API_KEY') || '';
+
+        // helper: open sms: composer fallback for each contact
+        function openSmsFallback(contacts, messageEncoded){
           contacts.forEach((c)=>{
             const phone = (c.phone || '').replace(/\s+/g,'').replace(/[^0-9+]/g,'');
             if(!phone) return;
-            const smsUrl = 'sms:' + phone + '?body=' + message;
-            window.open(smsUrl,'_blank');
+            const smsUrl = 'sms:' + phone + '?body=' + messageEncoded;
+            try{ window.open(smsUrl,'_blank'); }catch(e){}
           });
-          alert('Geolocation not available. Opened SMS composer without location.');
         }
+
+        // helper: try sending to server /send-sos with a short timeout
+        async function sendSosViaServer(url, apiKey, contacts, messagePlain, locationObj){
+          if(!url) return { ok:false, error:'no-server' };
+          try{
+            const endpoint = url.replace(/\/$/,'') + '/send-sos';
+            const controller = new AbortController();
+            const to = setTimeout(()=>controller.abort(), 8000);
+            const resp = await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey || ''
+              },
+              body: JSON.stringify({ contacts: contacts, message: messagePlain, location: locationObj }),
+              signal: controller.signal
+            });
+            clearTimeout(to);
+            if(!resp.ok) {
+              const txt = await resp.text().catch(()=>null);
+              return { ok:false, status: resp.status, text: txt };
+            }
+            const data = await resp.json().catch(()=>null);
+            return { ok:true, data };
+          }catch(err){
+            return { ok:false, error: err && err.message ? err.message : String(err) };
+          }
+        }
+
+        // Helper to get geolocation as a promise (short timeout)
+        function getLocationPromise(timeoutMs){
+          return new Promise((resolve)=>{
+            if(!navigator.geolocation) return resolve(null);
+            let done = false;
+            const timer = setTimeout(()=>{ if(!done){ done=true; resolve(null); } }, timeoutMs||5000);
+            navigator.geolocation.getCurrentPosition((pos)=>{
+              if(done) return; done = true; clearTimeout(timer);
+              resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+            }, (err)=>{
+              if(done) return; done = true; clearTimeout(timer); resolve(null);
+            }, { timeout: timeoutMs||5000 });
+          });
+        }
+
+        // main async flow
+        (async ()=>{
+          const loc = await getLocationPromise(5000);
+          const locationLink = loc ? ('https://maps.google.com/?q=' + loc.latitude + ',' + loc.longitude) : null;
+          const messagePlain = loc ? ('🚨 I need help! This is an emergency. My location: ' + locationLink) : '🚨 I need help! This is an emergency.';
+          const messageEncoded = encodeURIComponent(messagePlain);
+
+          // try server first if configured
+          if(serverUrl){
+            try{
+              const res = await sendSosViaServer(serverUrl, serverApiKey, contacts, messagePlain, loc);
+              if(res && res.ok){
+                // server reported success
+                try{ if(status) status.textContent = 'SOS sent via server'; }catch(e){}
+                // show a small UI cue if available
+                try{ alert('SOS sent via server to your contacts.'); }catch(e){}
+                return;
+              }
+              // if server not ok, fall through to sms fallback
+              console.warn('Server SOS failed, falling back to SMS composer', res);
+            }catch(e){
+              console.warn('Server send error, falling back to SMS composer', e);
+            }
+          }
+
+          // fallback: open sms: composer per contact
+          openSmsFallback(contacts, messageEncoded);
+          try{ alert('Opened SMS composer for each contact. Please tap send.'); }catch(e){}
+        })();
       }
 
       // start/stop listener (matches your snippet)
