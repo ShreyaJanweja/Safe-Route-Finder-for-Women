@@ -462,11 +462,26 @@
   function el(id){ return document.getElementById(id); }
   function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   const nav = el('navAuth'); if(!nav) return;
-  const user = JSON.parse(localStorage.getItem('authUser')||'null');
+
+  // Support both old localStorage key `authUser` and new `authToken`/`currentUser`
+  const token = localStorage.getItem('authToken');
+  const userJson = localStorage.getItem('currentUser') || localStorage.getItem('authUser') || null;
+  const user = userJson ? JSON.parse(userJson) : null;
+
   if(user){
-    nav.innerHTML = `<a href="profile.html" class="inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded text-sm">${escapeHtml(user.username||user.email)}</a>
-                     <button id="logoutBtn" class="ml-2 px-3 py-1 rounded bg-white/10 text-sm">Logout</button>`;
-    el('logoutBtn') && el('logoutBtn').addEventListener('click', ()=>{ localStorage.removeItem('authUser'); location.reload(); });
+    nav.innerHTML = `
+      <a href="profile.html" class="px-3 py-1 rounded bg-white/10 text-sm hover:bg-white/20 cursor-pointer">${escapeHtml(user.username||user.email||user.name||user)}</a>
+      <a href="profile.html" class="ml-2 px-3 py-1 rounded bg-white/10 text-sm hover:bg-white/20">Profile</a>
+      <button id="logoutBtn" class="ml-2 px-3 py-1 rounded bg-white/10 text-sm hover:bg-white/20">Logout</button>
+    `;
+
+    el('logoutBtn') && el('logoutBtn').addEventListener('click', ()=>{
+      // clear both legacy and new auth keys
+      localStorage.removeItem('authUser');
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('authToken');
+      location.reload();
+    });
   } else {
     nav.innerHTML = `<a href="login.html" class="ml-3 px-4 py-2 bg-white/10 rounded-md text-sm">Login / Signup</a>`;
   }

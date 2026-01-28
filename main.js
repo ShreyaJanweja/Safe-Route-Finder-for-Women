@@ -1,8 +1,41 @@
-// run everything after DOM ready
-document.addEventListener('DOMContentLoaded', ()=>{
+// ============================================
+// SURAKSHA SATHI - FRONTEND MAIN
+// ============================================
 
-  // init AOS animations if available
-  try{ AOS && AOS.init && AOS.init({ once: true }); }catch(e){ /* ignore if not loaded */ }
+const API_URL = 'http://localhost:3001/api';
+let authToken = localStorage.getItem('authToken');
+let currentUser = null;
+
+// ============================================
+// AUTH HELPER
+// ============================================
+async function apiCall(endpoint, method = 'GET', data = null) {
+  const options = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+    }
+  };
+  
+  if (data) options.body = JSON.stringify(data);
+  
+  try {
+    const response = await fetch(`${API_URL}${endpoint}`, options);
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'API Error');
+    return result;
+  } catch (err) {
+    console.error('API Error:', err);
+    throw err;
+  }
+}
+
+// ============================================
+// DOM READY
+// ============================================
+document.addEventListener('DOMContentLoaded', () => {
+  try { AOS && AOS.init && AOS.init({ once: true }); } catch (e) { }
 
   /* ---------- NAV / PAGE SWITCH ---------- */
   const pages = {
@@ -12,263 +45,289 @@ document.addEventListener('DOMContentLoaded', ()=>{
     about: document.getElementById('page-about')
   };
 
-  // IMPORTANT: declare map early so showPage won't throw before map is created
   let map = null;
 
-  function showPage(name){
-    Object.keys(pages).forEach(k=>{
-      pages[k].classList.toggle('hidden-page', k!==name);
-      pages[k].classList.toggle('visible-page', k===name);
+  function showPage(name) {
+    Object.keys(pages).forEach(k => {
+      pages[k].classList.toggle('hidden-page', k !== name);
+      pages[k].classList.toggle('visible-page', k === name);
     });
-    // if route page shown, invalidate map size after a moment
-    if(name==='route' && map) setTimeout(()=> map.invalidateSize(), 250);
-    history.replaceState(null,'', '#' + name);
+    if (name === 'route' && map) setTimeout(() => map.invalidateSize(), 250);
+    history.replaceState(null, '', '#' + name);
   }
-  // wire nav anchors
-  document.querySelectorAll('[data-nav]').forEach(a=>{
-    a.addEventListener('click', (e)=>{
+
+  document.querySelectorAll('[data-nav]').forEach(a => {
+    a.addEventListener('click', (e) => {
       e.preventDefault();
-      const target = (a.getAttribute('href') || '').replace('#','') || a.textContent.toLowerCase();
-      if(target && pages[target]) showPage(target);
+      const target = (a.getAttribute('href') || '').replace('#', '') || a.textContent.toLowerCase();
+      if (target && pages[target]) showPage(target);
     });
   });
-   // start based on hash (default to home)
-  const startHash = (location.hash || '#home').replace('#','');
+
+  const startHash = (location.hash || '#home').replace('#', '');
   showPage(pages[startHash] ? startHash : 'home');
 
-  /* ---------- HELPERS ---------- */
-  function debounce(fn, delay=300){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args),delay); }; }
-
-  /* ---------- FIREBASE / fallback ---------- */
-  const firebaseConfig = {
-    apiKey: "REPLACE_ME",
-    authDomain: "REPLACE_ME",
-    databaseURL: "REPLACE_ME",
-    projectId: "REPLACE_ME",
-    storageBucket: "REPLACE_ME",
-    messagingSenderId: "REPLACE_ME",
-    appId: "REPLACE_ME"
-  };
-  let db = null;
-  let useLocalFallback = false;
-  try{
-    if(!firebaseConfig.apiKey || firebaseConfig.apiKey.includes('REPLACE_ME')) {
-      useLocalFallback = true;
-      console.warn('Firebase config not set — using local fallback for reports');
+  /* ---------- AUTH UI ---------- */
+  function updateAuthUI() {
+    const navAuth = document.getElementById('navAuth');
+    if (authToken && currentUser) {
+      navAuth.innerHTML = `
+        <div class="flex items-center gap-2">
+          <span class="text-sm">${currentUser.name}</span>
+          <a href="#" id="profileLink" class="text-sm px-3 py-1 rounded hover:bg-white/10">Profile</a>
+          <button id="logoutBtn" class="text-sm px-3 py-1 rounded hover:bg-white/10">Logout</button>
+        </div>
+      `;
+      document.getElementById('profileLink').addEventListener('click', (e) => {
+        e.preventDefault();
+        showPage('profile');
+      });
+      document.getElementById('logoutBtn').addEventListener('click', () => {
+        localStorage.removeItem('authToken');
+        authToken = null;
+        currentUser = null;
+        updateAuthUI();
+        showPage('home');
+      });
     } else {
-      firebase.initializeApp(firebaseConfig);
-      db = firebase.database();
+      navAuth.innerHTML = `
+        <a href="login.html" class="text-sm px-3 py-1 rounded hover:bg-white/10">Login</a>
+        <a href="signup.html" class="text-sm px-3 py-1 rounded hover:bg-white/10">Signup</a>
+      `;
     }
-  }catch(e){ useLocalFallback = true; console.warn('Firebase init failed — fallback', e); }
+  }
 
-  // Local fallback simple store (in-memory + localStorage)
-  const localReportsKey = 'sr_reports_v1';
-  function loadLocalReports(){ try{ return JSON.parse(localStorage.getItem(localReportsKey) || '[]') }catch(e){ return [] } }
-  function saveLocalReport(r){ const arr = loadLocalReports(); arr.push(r); localStorage.setItem(localReportsKey, JSON.stringify(arr)); }
-  function fetchLocalReports(){ return loadLocalReports(); }
-
-  /* ---------- SAFETY POINTS ---------- */
-  const safetyPoints = [
-    { id: 'pol1', lat: 30.7199, lng: 76.789, type: 'police', weight: 5, label: 'Police Station' },
-    { id: 'light1', lat: 30.7230, lng: 76.776, type: 'light', weight: 2, label: 'Well-lit area' },
-    { id: 'unsafe1', lat: 30.7212, lng: 76.784, type: 'unsafe', weight: -3, label: 'Reported incident' }
-  ];
+  // Load current user if logged in
+  if (authToken) {
+    apiCall('/user/profile')
+      .then(res => {
+        currentUser = res.user;
+        updateAuthUI();
+      })
+      .catch(err => {
+        console.error('Failed to load user profile:', err);
+        localStorage.removeItem('authToken');
+        authToken = null;
+      });
+  }
+  updateAuthUI();
 
   /* ---------- MAP INIT ---------- */
-  // assign to the earlier-declared map variable
   map = L.map('map').setView([30.72, 76.78], 13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OSM' }).addTo(map);
   const safetyLayer = L.layerGroup().addTo(map);
   const reportsLayer = L.layerGroup().addTo(map);
 
-  // small non-interactive preview map on Home
-  try{
+  // Home mini map
+  try {
     const homeMiniEl = document.getElementById('home-mini-map');
-    if(homeMiniEl){
-      const homeMini = L.map('home-mini-map', { zoomControl:false, attributionControl:false, dragging:false, scrollWheelZoom:false, doubleClickZoom:false }).setView([30.72,76.78], 13);
+    if (homeMiniEl) {
+      const homeMini = L.map('home-mini-map', { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false }).setView([30.72, 76.78], 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(homeMini);
-      L.circle([30.721,76.78], { color: '#10b981', fillColor: '#10b98122', radius: 180 }).addTo(homeMini);
-      L.marker([30.72,76.78]).addTo(homeMini).bindPopup('Sample Safe Zone');
+      L.circle([30.721, 76.78], { color: '#10b981', fillColor: '#10b98122', radius: 180 }).addTo(homeMini);
+      L.marker([30.72, 76.78]).addTo(homeMini).bindPopup('Sample Safe Zone');
     }
-  }catch(e){ console.warn('home mini map init failed', e); }
+  } catch (e) { }
 
-  function renderSafetyPoints(){
+  /* ---------- LOAD SAFETY POINTS & REPORTS ---------- */
+  let safetyPoints = [];
+  let allReports = [];
+
+  async function loadSafetyPoints() {
+    try {
+      const res = await apiCall('/safety-points');
+      safetyPoints = res.points || [];
+      renderSafetyPoints();
+    } catch (err) {
+      console.error('Failed to load safety points:', err);
+    }
+  }
+
+  async function loadReports() {
+    try {
+      const res = await apiCall('/reports?limit=100');
+      allReports = res.reports || [];
+      renderReports();
+    } catch (err) {
+      console.error('Failed to load reports:', err);
+    }
+  }
+
+  function renderSafetyPoints() {
     safetyLayer.clearLayers();
     safetyPoints.forEach(p => {
-      const color = p.type === 'police' ? '#2563eb' : (p.type === 'light' ? '#16a34a' : '#ef4444');
-      const icon = L.divIcon({ className:'rounded-full', html:`<span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:${color};box-shadow:0 0 6px ${color}"></span>`, iconSize:[18,18] });
-      L.marker([p.lat,p.lng], { icon }).bindPopup(`<b>${p.label}</b><br/>Type: ${p.type}`).addTo(safetyLayer);
+      const color = p.type === 'police' ? '#2563eb' : (p.type === 'hospital' ? '#16a34a' : (p.type === 'market' ? '#f59e0b' : '#8b5cf6'));
+      const icon = L.divIcon({ className: 'rounded-full', html: `<span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:${color};box-shadow:0 0 6px ${color}"></span>`, iconSize: [18, 18] });
+      L.marker([p.lat, p.lng], { icon }).bindPopup(`<b>${p.name}</b><br/>Type: ${p.type}`).addTo(safetyLayer);
     });
   }
-  renderSafetyPoints();
 
-  /* ---------- REPORTS (realtime if Firebase, else local) ---------- */
-  let cachedReports = [];
-  const reportsRef = db ? db.ref('reports') : null;
-
-  function loadReportsAndRender(){
-    if(useLocalFallback){
-      cachedReports = fetchLocalReports();
-      renderReports(cachedReports);
-    } else {
-      reportsRef.on('value', snapshot => {
-        const val = snapshot.val() || {};
-        cachedReports = Object.values(val);
-        renderReports(cachedReports);
-      });
-    }
-  }
-
-  function renderReports(list){
+  function renderReports() {
     reportsLayer.clearLayers();
-    const feed = document.getElementById('feedList'); if(feed) feed.innerHTML = '';
-    const count = list.length || 0;
-    const rc = document.getElementById('reportsCount'); if(rc) rc.innerText = count;
+    const feed = document.getElementById('feedList');
+    if (feed) feed.innerHTML = '';
+    const count = allReports.length || 0;
+    const rc = document.getElementById('reportsCount');
+    if (rc) rc.innerText = count;
 
-    (list.slice().reverse()).forEach(r => {
+    (allReports.slice().reverse()).forEach(r => {
       const item = document.createElement('div');
       item.className = 'p-2 border rounded-md bg-white';
-      item.innerHTML = `<div class="text-sm font-semibold">${r.type} <span class="text-xs text-slate-400">· ${new Date(r.ts).toLocaleString()}</span></div>
-                        <div class="text-xs text-slate-600">${r.note || ''}</div>`;
-      if(feed) feed.appendChild(item);
+      item.innerHTML = `<div class="text-sm font-semibold">${r.type} <span class="text-xs text-slate-400">· ${new Date(r.timestamp).toLocaleString()}</span></div>
+                        <div class="text-xs text-slate-600">${r.note || ''}</div>
+                        <div class="text-xs text-slate-500 mt-1">by ${r.userName}</div>`;
+      if (feed) feed.appendChild(item);
 
-      const icon = L.divIcon({ html:`<span style="width:14px;height:14px;border-radius:50%;background:#ef4444;display:inline-block;box-shadow:0 0 6px #ef4444"></span>`, iconSize:[14,14] });
-      L.marker([r.lat, r.lng], { icon }).bindPopup(`<b>${r.type}</b><br/>${r.note || ''}`).addTo(reportsLayer);
+      const icon = L.divIcon({ html: `<span style="width:14px;height:14px;border-radius:50%;background:#ef4444;display:inline-block;box-shadow:0 0 6px #ef4444"></span>`, iconSize: [14, 14] });
+      L.marker([r.lat, r.lng], { icon }).bindPopup(`<b>${r.type}</b><br/>${r.note || ''}<br/><small>by ${r.userName}</small>`).addTo(reportsLayer);
     });
   }
 
-  loadReportsAndRender();
+  loadSafetyPoints();
+  loadReports();
+  // Refresh reports every 30 seconds
+  setInterval(loadReports, 30000);
 
-  /* ---------- ROUTING & SCORING ---------- */
+  /* ---------- REPORT FORM ---------- */
+  document.getElementById('btnReport')?.addEventListener('click', () => {
+    if (!authToken) {
+      alert('Please login to submit reports');
+      window.location.href = 'login.html';
+      return;
+    }
+    showReportModal();
+  });
+
+  document.getElementById('homeReportBtn')?.addEventListener('click', () => {
+    if (!authToken) {
+      alert('Please login to submit reports');
+      window.location.href = 'login.html';
+      return;
+    }
+    showReportModal();
+  });
+
+  function showReportModal() {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50';
+    modal.innerHTML = `
+      <div class="bg-white rounded-lg shadow-lg w-11/12 max-w-md p-6">
+        <h2 class="text-lg font-bold mb-4">Report Unsafe Area</h2>
+        <select id="reportType" class="w-full p-2 border rounded-md mb-3">
+          <option value="">Select Type</option>
+          <option value="assault">Assault</option>
+          <option value="theft">Theft</option>
+          <option value="harassment">Harassment</option>
+          <option value="suspicious">Suspicious Activity</option>
+          <option value="other">Other</option>
+        </select>
+        <textarea id="reportNote" class="w-full p-2 border rounded-md mb-3" rows="3" placeholder="Describe the incident..."></textarea>
+        <div class="flex gap-3">
+          <button id="useLocation" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md">📍 Use My Location</button>
+          <button id="cancelReport" class="flex-1 px-4 py-2 border rounded-md">Cancel</button>
+        </div>
+        <button id="submitReport" class="w-full mt-3 px-4 py-2 bg-indigo-600 text-white rounded-md hidden">Submit Report</button>
+        <div id="locationStatus" class="text-xs mt-2 text-center text-slate-500"></div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    let currentLat = null, currentLng = null;
+
+    document.getElementById('useLocation').addEventListener('click', () => {
+      const status = document.getElementById('locationStatus');
+      status.textContent = 'Getting location...';
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          currentLat = pos.coords.latitude;
+          currentLng = pos.coords.longitude;
+          status.textContent = `✅ Location: ${currentLat.toFixed(4)}, ${currentLng.toFixed(4)}`;
+          document.getElementById('submitReport').classList.remove('hidden');
+        },
+        (err) => {
+          status.textContent = '❌ Location access denied';
+        }
+      );
+    });
+
+    document.getElementById('submitReport').addEventListener('click', async () => {
+      const type = document.getElementById('reportType').value;
+      const note = document.getElementById('reportNote').value;
+
+      if (!type || !currentLat) {
+        alert('Please select type and location');
+        return;
+      }
+
+      try {
+        const res = await apiCall('/reports', 'POST', {
+          type,
+          lat: currentLat,
+          lng: currentLng,
+          note
+        });
+        alert('✅ Report submitted successfully!');
+        loadReports();
+        modal.remove();
+      } catch (err) {
+        alert('❌ Failed to submit report: ' + err.message);
+      }
+    });
+
+    document.getElementById('cancelReport').addEventListener('click', () => modal.remove());
+  }
+
+  /* ---------- SOS BUTTON ---------- */
+  document.getElementById('btnSOS')?.addEventListener('click', async () => {
+    if (!authToken) {
+      alert('Please login to use SOS');
+      window.location.href = 'login.html';
+      return;
+    }
+
+    const confirmed = confirm('🚨 Send SOS alert to your emergency contacts?');
+    if (!confirmed) return;
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await apiCall('/sos', 'POST', {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            message: 'I need help! Please check my location.'
+          });
+          alert('🚨 SOS sent! Emergency contacts have been notified.');
+        } catch (err) {
+          alert('❌ Failed to send SOS: ' + err.message);
+        }
+      },
+      (err) => {
+        alert('❌ Please enable location access to use SOS');
+      }
+    );
+  });
+
+  /* ---------- ROUTE FINDER ---------- */
   let routingControl = null;
   let currentRoutes = [];
 
-  function clearRoutes(){
-    if(routingControl) map.removeControl(routingControl);
-    routingControl = null; currentRoutes = [];
-    const rl = document.getElementById('routesList'); if(rl) rl.innerHTML = '';
-  }
+  const coordStore = { start: null, end: null };
 
-  function addRouting(s, e){
-    clearRoutes();
-    routingControl = L.Routing.control({
-      waypoints: [L.latLng(s.lat,s.lng), L.latLng(e.lat,e.lng)],
-      router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' }),
-      showAlternatives: true,
-      altLineOptions: { styles:[{color:'#f59e0b', opacity:0.8, weight:6}] },
-      lineOptions: { styles:[{color:'#10b981', opacity:0.9, weight:6}] },
-      addWaypoints: false,
-      fitSelectedRoute: true
-    }).addTo(map);
-
-    routingControl.on('routesfound', e => {
-      const routes = e.routes || [];
-      currentRoutes = routes;
-      populateRoutesList(routes);
-    });
-  }
-
-  function populateRoutesList(routes){
-    const list = document.getElementById('routesList'); if(!list) return; list.innerHTML = '';
-    routes.forEach((r, idx) => {
-      const coords = r.coordinates.map(c => ({ lat: c.lat, lng: c.lng }));
-      const score = computeSafetyScore(coords);
-      const div = document.createElement('div');
-      const distKm = (r.summary.totalDistance/1000).toFixed(2);
-      const timeMin = Math.round(r.summary.totalTime/60);
-      const color = score >= 3.5 ? 'bg-green-100 border-green-300' : (score >= 2 ? 'bg-amber-100 border-amber-300' : 'bg-red-100 border-red-300');
-      div.className = `p-3 rounded-md border ${color} cursor-pointer`;
-      div.innerHTML = `<div class="flex justify-between items-start">
-                        <div>
-                          <div class="font-semibold">Route ${idx+1}</div>
-                          <div class="text-xs text-slate-600">${distKm} km · ${timeMin} min</div>
-                        </div>
-                        <div class="text-right">
-                          <div class="route-badge inline-flex items-center justify-center px-3 py-1 rounded-full font-semibold text-sm">${score} ⭐</div>
-                          <div class="text-xs text-slate-500">safety</div>
-                        </div>
-                      </div>
-                      <div class="mt-2 text-xs text-slate-700">Click to highlight this route on map</div>`;
-      div.addEventListener('click', ()=> selectRoute(idx));
-      list.appendChild(div);
-    });
-  }
-
-  function selectRoute(index){
-    if(!currentRoutes[index]) return;
-    const route = currentRoutes[index];
-    if(routingControl) map.removeControl(routingControl);
-
-    const coords = route.coordinates.map(c => L.latLng(c.lat,c.lng));
-    const score = computeSafetyScore(route.coordinates.map(c=>({lat:c.lat,lng:c.lng})));
-    const line = L.polyline(coords, { color: routeScoreColor(score), weight:7, opacity:0.95 }).addTo(map);
-    map.fitBounds(line.getBounds(), { padding:[60,60] });
-
-    setTimeout(()=>{ try{ map.removeLayer(line); addRoutingMarkersFromRoute(route); }catch(e){} }, 900);
-  }
-
-  function addRoutingMarkersFromRoute(route){
-    const start = route.coordinates[0];
-    const end = route.coordinates[route.coordinates.length-1];
-    L.marker([start.lat,start.lng]).addTo(map).bindPopup('Start').openPopup();
-    L.marker([end.lat,end.lng]).addTo(map).bindPopup('End');
-  }
-
-  function routeScoreColor(score){
-    if(score >= 3.5) return '#10b981';
-    if(score >= 2) return '#f59e0b';
-    return '#ef4444';
-  }
-
-  // computeSafetyScore - quick heuristic using safetyPoints + cachedReports
-  function computeSafetyScore(coords){
-    if(!coords || coords.length===0) return 3.0;
-    const pts = coords.map(c => ({ lat: c.lat || c[1] || c[0], lng: c.lng || c[0] || c[1] }));
-    let score = 0; let count = 0;
-    pts.forEach(p => {
-      safetyPoints.forEach(sp => {
-        const d = map.distance([p.lat,p.lng],[sp.lat,sp.lng]) / 1000.0;
-        if(d < 0.25){ score += sp.weight; }
-      });
-      count++;
-    });
-    cachedReports.forEach(r => {
-      pts.forEach(p => {
-        const d = map.distance([p.lat,p.lng],[r.lat,r.lng]) / 1000.0;
-        if(d < 0.25) { score -= 3; }
-      });
-    });
-    const normalized = Math.max(1, Math.min(5, ( (score / Math.max(1,count)) + 3 )));
-    return Number(normalized.toFixed(2));
-  }
-
-  /* ---------- GEOCODE + AUTOCOMPLETE ---------- */
-  async function fetchPlace(q){
+  async function fetchPlace(q) {
     const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=6&q=' + encodeURIComponent(q);
-    const r = await fetch(url, { headers: { 'Accept-Language':'en' } });
+    const r = await fetch(url, { headers: { 'Accept-Language': 'en' } });
     return await r.json();
   }
-  async function geocode(q){
-    const url = 'https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(q);
-    try{
-      const resp = await fetch(url, { headers: { 'Accept-Language':'en' } });
-      const data = await resp.json();
-      if(data && data.length>0) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-    }catch(e){ console.warn('geocode failed', e); }
-    return null;
-  }
 
-  // suggestion boxes for both inputs
-  function ensureSuggestBoxes(){
-    ['startInput','endInput'].forEach(id=>{
+  function ensureSuggestBoxes() {
+    ['startInput', 'endInput'].forEach(id => {
       const inp = document.getElementById(id);
-      if(!inp) return;
+      if (!inp) return;
       let box = inp.nextElementSibling;
-      if(!box || !box.classList || !box.classList.contains('suggest-box')){
+      if (!box || !box.classList || !box.classList.contains('suggest-box')) {
         box = document.createElement('div');
         box.className = 'suggest-box mt-1 bg-white border rounded-md shadow-sm z-50 absolute w-full max-h-48 overflow-auto hidden';
         box.style.position = 'absolute';
-        // keep box relative to parent container
         inp.parentNode.style.position = 'relative';
         box.style.left = '0px';
         box.style.top = (inp.offsetHeight + 6) + 'px';
@@ -278,15 +337,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
   }
   ensureSuggestBoxes();
 
-  const coordStore = { start: null, end: null };
-  function renderSuggestions(list, box, inputKey, inputEl){
+  function renderSuggestions(list, box, inputKey, inputEl) {
     box.innerHTML = '';
-    if(!list || list.length===0){ box.classList.add('hidden'); return; }
-    list.forEach(it=>{
+    if (!list || list.length === 0) { box.classList.add('hidden'); return; }
+    list.forEach(it => {
       const el = document.createElement('div');
       el.className = 'p-2 hover:bg-indigo-50 cursor-pointer text-sm';
       el.innerHTML = `<div class="font-medium">${it.display_name.split(',')[0]}</div><div class="text-xs text-slate-500">${it.display_name}</div>`;
-      el.addEventListener('click', ()=>{
+      el.addEventListener('click', () => {
         inputEl.value = it.display_name.split(',')[0];
         coordStore[inputKey] = { lat: parseFloat(it.lat), lng: parseFloat(it.lon) };
         box.classList.add('hidden');
@@ -296,281 +354,109 @@ document.addEventListener('DOMContentLoaded', ()=>{
     box.classList.remove('hidden');
   }
 
-  ['start','end'].forEach(key=>{
+  ['start', 'end'].forEach(key => {
     const inputEl = document.getElementById(key + 'Input');
-    if(!inputEl) return;
-    const box = inputEl.parentNode.querySelector('.suggest-box');
-    const handler = debounce(async (e)=>{
+    if (!inputEl) return;
+
+    const debounce = (fn, delay = 300) => {
+      let t;
+      return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
+    };
+
+    inputEl.addEventListener('input', debounce(async (e) => {
       const q = e.target.value.trim();
-      if(!q){ box && box.classList.add('hidden'); return; }
-      try{
-        const res = await fetchPlace(q);
-        renderSuggestions(res, box, key, inputEl);
-      }catch(e){ console.warn('suggest fail', e); box && box.classList.add('hidden'); }
-    }, 300);
-    inputEl.addEventListener('input', handler);
-    // hide when clicking outside
-    document.addEventListener('click', (ev)=>{ if(!inputEl.contains(ev.target) && box && !box.contains(ev.target)) box.classList.add('hidden'); });
+      if (q.length < 2) return;
+      const box = inputEl.nextElementSibling;
+      try {
+        const results = await fetchPlace(q);
+        renderSuggestions(results, box, key, inputEl);
+      } catch (err) { }
+    }));
   });
 
-  /* ---------- Find / Center buttons ---------- */
-  const btnFind = document.getElementById('btnFind');
-  if(btnFind){
-    btnFind.addEventListener('click', async ()=>{
-      const sQ = document.getElementById('startInput').value.trim();
-      const eQ = document.getElementById('endInput').value.trim();
-      if(!sQ || !eQ){ alert('Please enter both start and destination'); return; }
-
-      let s = coordStore.start;
-      let e = coordStore.end;
-      if(!s){ s = await geocode(sQ); }
-      if(!e){ e = await geocode(eQ); }
-      if(!s || !e){ alert('Could not find locations. Try selecting a suggestion or use more specific text.'); return; }
-
-      if(window._tempStartMarker) map.removeLayer(window._tempStartMarker);
-      if(window._tempEndMarker) map.removeLayer(window._tempEndMarker);
-      window._tempStartMarker = L.marker([s.lat,s.lng]).addTo(map).bindPopup('Start').openPopup();
-      window._tempEndMarker = L.marker([e.lat,e.lng]).addTo(map).bindPopup('End');
-
-      addRouting(s,e);
-    });
-  }
-
-  const btnCenter = document.getElementById('btnCenter');
-  if(btnCenter) btnCenter.addEventListener('click', ()=> map.setView([30.72,76.78],13));
-
-  /* ---------- Auto-run route on load if possible ---------- */
-  (async function tryAutoRoute(){
-    const defaultDest = 'CGC Jhanjeri';
-    let destCoords = null;
-    try{ destCoords = await geocode(defaultDest); }catch(e){}
-    if(navigator.geolocation){
-      navigator.geolocation.getCurrentPosition(async pos=>{
-        const s = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        const si = document.getElementById('startInput');
-        if(si){ si.value = 'My Location'; }
-        coordStore.start = s;
-        if(destCoords){
-          const ei = document.getElementById('endInput');
-          if(ei){ ei.value = defaultDest.split(',')[0]; }
-          coordStore.end = destCoords;
-          setTimeout(()=> addRouting(s, destCoords), 700);
-        }
-        L.circleMarker([s.lat,s.lng], { radius:8, fillColor:'#3b82f6', fillOpacity:0.9, stroke:false }).addTo(map).bindPopup('You are here');
-      }, async ()=>{ /* fallback */ }, { timeout: 4000 });
-    } else if(destCoords){
-      const s = await geocode('Chitkara University, Punjab');
-      if(s){
-        document.getElementById('startInput').value = 'Chitkara University';
-        coordStore.start = s;
-        document.getElementById('endInput').value = defaultDest.split(',')[0];
-        coordStore.end = destCoords;
-        setTimeout(()=> addRouting(s,destCoords), 700);
-      }
+  document.getElementById('findRoutesBtn')?.addEventListener('click', async () => {
+    if (!coordStore.start || !coordStore.end) {
+      alert('Please select both start and end locations');
+      return;
     }
-  })();
 
-  /* ---------- SAFETY TIPS (Home) ---------- */
-  (function(){
-    const tipsContainer = document.getElementById('homeTips');
-    if(!tipsContainer) return;
-    const tips = tipsContainer.querySelectorAll('.tip') || [];
-    if(!tips || tips.length===0) return;
-    let idx = 0;
-    function show(i){ tips.forEach((t,ii)=> t.classList.toggle('hidden', ii!==i)); }
-    const nextBtn = document.getElementById('homeTipNext');
-    const prevBtn = document.getElementById('homeTipPrev');
-    nextBtn && nextBtn.addEventListener('click', ()=>{ idx=(idx+1)%tips.length; show(idx); });
-    prevBtn && prevBtn.addEventListener('click', ()=>{ idx=(idx-1+tips.length)%tips.length; show(idx); });
-    setInterval(()=>{ idx=(idx+1)%tips.length; show(idx); }, 6000);
-    show(0);
-  })();
+    const start = coordStore.start;
+    const end = coordStore.end;
 
-  /* ---------- REPORT modal ---------- */
-  document.getElementById('btnReport') && document.getElementById('btnReport').addEventListener('click', ()=> showReportModal());
-  document.getElementById('btnOpenReport') && document.getElementById('btnOpenReport').addEventListener('click', ()=> {
-    showReportModal();
-    showPage('community');
+    // Clear old routes
+    if (routingControl) map.removeControl(routingControl);
+    routingControl = null;
+    currentRoutes = [];
+
+    // Get routes from OSRM
+    routingControl = L.Routing.control({
+      waypoints: [L.latLng(start.lat, start.lng), L.latLng(end.lat, end.lng)],
+      router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' }),
+      showAlternatives: true,
+      altLineOptions: { styles: [{ color: '#f59e0b', opacity: 0.8, weight: 6 }] },
+      lineOptions: { styles: [{ color: '#10b981', opacity: 0.9, weight: 6 }] },
+      addWaypoints: false,
+      fitSelectedRoute: true
+    }).addTo(map);
+
+    routingControl.on('routesfound', async e => {
+      const routes = e.routes || [];
+      currentRoutes = routes;
+
+      const list = document.getElementById('routesList');
+      if (!list) return;
+      list.innerHTML = '';
+
+      for (let idx = 0; idx < routes.length; idx++) {
+        const r = routes[idx];
+        const coords = r.coordinates.map(c => ({ lat: c.lat, lng: c.lng }));
+
+        // Calculate safety score
+        let score = 3.0;
+        try {
+          const res = await apiCall('/routes/safety-score', 'POST', { coordinates: coords });
+          score = res.score;
+        } catch (err) { }
+
+        const div = document.createElement('div');
+        const distKm = (r.summary.totalDistance / 1000).toFixed(2);
+        const timeMin = Math.round(r.summary.totalTime / 60);
+        const color = score >= 3.5 ? 'bg-green-100 border-green-300' : (score >= 2 ? 'bg-amber-100 border-amber-300' : 'bg-red-100 border-red-300');
+        div.className = `p-3 rounded-md border ${color} cursor-pointer`;
+        div.innerHTML = `<div class="flex justify-between items-start">
+                          <div>
+                            <div class="font-semibold">Route ${idx + 1}</div>
+                            <div class="text-xs text-slate-600">${distKm} km · ${timeMin} min</div>
+                          </div>
+                          <div class="text-right">
+                            <div class="inline-flex items-center justify-center px-3 py-1 rounded-full font-semibold text-sm">${score} ⭐</div>
+                            <div class="text-xs text-slate-500">safety</div>
+                          </div>
+                        </div>`;
+        div.addEventListener('click', () => selectRoute(idx));
+        list.appendChild(div);
+      }
+    });
   });
 
-  function showReportModal(){
-    const root = document.getElementById('modalRoot');
-    root.innerHTML = `
-      <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg shadow-lg w-11/12 max-w-md p-4">
-          <div class="flex items-center justify-between mb-2">
-            <div class="font-semibold">Report Unsafe Area</div>
-            <button id="closeReport" class="text-slate-500">✕</button>
-          </div>
-          <div>
-            <label class="text-sm">Type</label>
-            <select id="repType" class="w-full mt-1 p-2 border rounded-md">
-              <option>Unsafe Area</option>
-              <option>Harassment</option>
-              <option>Theft</option>
-              <option>Other</option>
-            </select>
-            <label class="text-sm mt-3">Note</label>
-            <textarea id="repNote" class="w-full mt-1 p-2 border rounded-md" rows="3" placeholder="Describe briefly"></textarea>
-            <div class="flex items-center gap-2 mt-3">
-              <button id="useMyLoc" class="px-3 py-2 bg-indigo-600 text-white rounded-md">Use my location</button>
-              <div id="myLocStatus" class="text-sm text-slate-500"></div>
-            </div>
-            <div class="flex gap-2 mt-4 justify-end">
-              <button id="cancelReport" class="px-3 py-2 border rounded-md">Cancel</button>
-              <button id="submitReport" class="px-3 py-2 bg-indigo-600 text-white rounded-md">Submit</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
+  function selectRoute(index) {
+    if (!currentRoutes[index]) return;
+    const route = currentRoutes[index];
+    if (routingControl) map.removeControl(routingControl);
 
-    document.getElementById('closeReport').addEventListener('click', ()=> root.innerHTML='');
-    document.getElementById('cancelReport').addEventListener('click', ()=> root.innerHTML='');
-    document.getElementById('useMyLoc').addEventListener('click', ()=>{
-      const myLocStatus = document.getElementById('myLocStatus');
-      myLocStatus && (myLocStatus.innerText = 'Getting location...');
-      navigator.geolocation.getCurrentPosition(pos=>{
-        window._reportLat = pos.coords.latitude; window._reportLng = pos.coords.longitude;
-        myLocStatus && (myLocStatus.innerText = 'Location set');
-      }, err=>{
-        myLocStatus && (myLocStatus.innerText = 'Could not get location');
-      });
-    });
+    const coords = route.coordinates.map(c => L.latLng(c.lat, c.lng));
+    const line = L.polyline(coords, { color: '#10b981', weight: 7, opacity: 0.95 }).addTo(map);
+    map.fitBounds(line.getBounds(), { padding: [60, 60] });
 
-    document.getElementById('submitReport').addEventListener('click', ()=>{
-      const type = document.getElementById('repType').value; const note = document.getElementById('repNote').value;
-      const lat = window._reportLat || (map.getCenter && map.getCenter().lat); const lng = window._reportLng || (map.getCenter && map.getCenter().lng);
-      if(!lat || !lng){ alert('Location unknown'); return; }
-      const rep = { type, note, lat, lng, ts: Date.now() };
-      if(useLocalFallback){
-        saveLocalReport(rep);
-        loadReportsAndRender();
-        root.innerHTML=''; alert('Report saved locally — thank you!');
-      } else {
-        const newRef = reportsRef.push(); newRef.set(rep).then(()=>{
-          root.innerHTML=''; alert('Report submitted — thank you!');
-        }).catch(e=>{ alert('Could not submit: '+e.message); });
-      }
-    });
+    setTimeout(() => {
+      try { map.removeLayer(line); } catch (e) { }
+      const start = route.coordinates[0];
+      const end = route.coordinates[route.coordinates.length - 1];
+      L.marker([start.lat, start.lng]).addTo(map).bindPopup('Start').openPopup();
+      L.marker([end.lat, end.lng]).addTo(map).bindPopup('End');
+    }, 900);
   }
 
-  // wire hero report button (defined in updated index.html) to open report modal and navigate community
-  try{
-    const homeReportBtn = document.getElementById('homeReportBtn');
-    if(homeReportBtn){
-      homeReportBtn.addEventListener('click', ()=>{
-        showReportModal();
-        showPage('community');
-      });
-    }
-  }catch(e){ /* ignore */ }
-
-  /* ---------- SOS button ---------- */
-  document.getElementById('btnSOS') && document.getElementById('btnSOS').addEventListener('click', ()=>{
-    if(!navigator.geolocation){ alert('Geolocation not supported'); return; }
-    const root = document.getElementById('modalRoot');
-    root.innerHTML = `<div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-lg w-11/12 max-w-sm p-4 text-center">
-        <div class="text-lg font-semibold text-red-600 mb-2">Sending SOS...</div>
-        <div class="text-sm text-slate-600 mb-4">We will log your alert and notify nearby community (demo)</div>
-        <div id="sosInfo" class="text-sm text-slate-500">Getting location…</div>
-        <div class="mt-4"><button id="closeSOS" class="px-4 py-2 bg-gray-200 rounded-md">Close</button></div>
-      </div>
-    </div>`;
-
-    navigator.geolocation.getCurrentPosition(pos=>{
-      const lat = pos.coords.latitude; const lng = pos.coords.longitude;
-      const payload = { lat, lng, ts: Date.now(), status: 'sent' };
-      if(useLocalFallback){
-        saveLocalReport({ type: 'SOS', note: 'SOS alert', lat, lng, ts: Date.now() });
-        const si = document.getElementById('sosInfo'); si && (si.innerText = 'SOS logged locally (demo).');
-        loadReportsAndRender();
-      } else {
-        db.ref('sos').push(payload).then(()=>{
-          const si = document.getElementById('sosInfo'); si && (si.innerText = 'SOS logged. Help will be notified (demo).');
-        }).catch(e=>{ const si = document.getElementById('sosInfo'); si && (si.innerText = 'Could not send SOS: '+e.message); });
-      }
-    }, err=>{ const si = document.getElementById('sosInfo'); si && (si.innerText = 'Location denied or unavailable.'); });
-
-    document.getElementById('closeSOS') && document.getElementById('closeSOS').addEventListener('click', ()=> document.getElementById('modalRoot').innerHTML='');
-  });
-
-  // initial render of local reports if fallback
-  if(useLocalFallback) renderReports(fetchLocalReports());
-
-  /* ---------- FOOTER / CHAT / BACK-TO-TOP ---------- */
-  // set copyright year
-  try{ document.getElementById('year') && (document.getElementById('year').innerText = new Date().getFullYear()); }catch(e){}
-
-  // Back to Top: show when scrolled and smooth scroll
-  (function(){
-    const btn = document.getElementById('backToTop');
-    if(!btn) return;
-    const toggle = ()=> btn.classList.toggle('opacity-0', window.scrollY < 240);
-    window.addEventListener('scroll', toggle);
-    toggle();
-    btn.addEventListener('click', ()=> window.scrollTo({ top: 0, behavior: 'smooth' }));
-  })();
-
-  // Chat modal (floating Chat with Us)
-  function saveFeedbackLocal(f){
-    try{
-      const key = 'sr_feedback_v1';
-      const arr = JSON.parse(localStorage.getItem(key) || '[]');
-      arr.push(f);
-      localStorage.setItem(key, JSON.stringify(arr));
-    }catch(e){ console.warn('save feedback failed', e); }
-  }
-
-  function openChatModal(){
-    const root = document.getElementById('modalRoot');
-    root.innerHTML = `
-      <div id="chatModalBackdrop" class="fixed inset-0 bg-black/40 flex items-center justify-center z-60">
-        <div class="bg-white rounded-lg shadow-lg w-11/12 max-w-md p-4">
-          <div class="flex items-start justify-between mb-2">
-            <div class="font-semibold">Chat / Feedback</div>
-            <button id="closeChat" class="text-slate-500">✕</button>
-          </div>
-          <div>
-            <label class="text-sm">Your name (optional)</label>
-            <input id="chatName" class="w-full mt-1 p-2 border rounded-md" placeholder="Your name" />
-            <label class="text-sm mt-3">Message</label>
-            <textarea id="chatMsg" class="w-full mt-1 p-2 border rounded-md" rows="4" placeholder="How can we help?"></textarea>
-            <div class="flex gap-2 mt-4 justify-end">
-              <button id="cancelChat" class="px-3 py-2 border rounded-md">Cancel</button>
-              <button id="sendChat" class="px-3 py-2 bg-indigo-600 text-white rounded-md">Send</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    document.getElementById('closeChat').addEventListener('click', ()=> document.getElementById('modalRoot').innerHTML = '');
-    document.getElementById('cancelChat').addEventListener('click', ()=> document.getElementById('modalRoot').innerHTML = '');
-    document.getElementById('sendChat').addEventListener('click', ()=>{
-      const name = document.getElementById('chatName').value.trim();
-      const msg = document.getElementById('chatMsg').value.trim();
-      if(!msg){ alert('Please write a message.'); return; }
-      const payload = { name: name || 'Anonymous', message: msg, ts: Date.now() };
-      // try save to firebase feedback node if available, else local
-      if(db){
-        try{
-          db.ref('feedback').push(payload).then(()=>{ alert('Thanks — your message was sent.'); document.getElementById('modalRoot').innerHTML = ''; });
-        }catch(e){ saveFeedbackLocal(payload); alert('Saved locally (offline).'); document.getElementById('modalRoot').innerHTML = ''; }
-      } else {
-        saveFeedbackLocal(payload);
-        alert('Thanks — your message was saved (demo).');
-        document.getElementById('modalRoot').innerHTML = '';
-      }
-    });
-  }
-
-  // wire chat floating button
-  try{
-    const chatBtn = document.getElementById('chatBtn');
-    if(chatBtn) chatBtn.addEventListener('click', openChatModal);
-  }catch(e){}
-
-}); // DOMContentLoaded end
-
+  /* ---------- FOOTER ---------- */
+  try { document.getElementById('year') && (document.getElementById('year').innerText = new Date().getFullYear()); } catch (e) { }
+});

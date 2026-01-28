@@ -107,7 +107,8 @@
   </main>
 
   <script>
-    // shared success modal helper (paste this into your <script> — only once per page)
+    const API_URL = 'http://localhost:3001/api';
+
     function createSuccessModalIfNeeded(){
       if(document.getElementById('successModal')) return;
       const div = document.createElement('div');
@@ -135,23 +136,37 @@
       if(redirectUrl){ setTimeout(()=> { window.location.href = redirectUrl; }, typeof delay === 'number' ? delay : 1400); }
     }
 
-    // small helpers + validation similar to before
     const el = id => document.getElementById(id);
     function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-    // render nav auth (profile / logout when logged in; signup/login when not)
+    // API Call helper
+    async function apiCall(endpoint, method = 'GET', data = null) {
+      const options = {
+        method,
+        headers: { 'Content-Type': 'application/json' }
+      };
+      if (data) options.body = JSON.stringify(data);
+      
+      const response = await fetch(`${API_URL}${endpoint}`, options);
+      return await response.json();
+    }
+
+    // Render nav auth
     function renderNavAuth(){
       const nav = el('navAuth'); if(!nav) return;
-      const user = JSON.parse(localStorage.getItem('authUser') || 'null');
-      if(user){
+      const token = localStorage.getItem('authToken');
+      const user = localStorage.getItem('currentUser') ? JSON.parse(localStorage.getItem('currentUser')) : null;
+      
+      if(token && user){
         nav.innerHTML = `
           <a href="profile.html" class="inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded border border-white/20 text-sm hover:bg-white/12">
-            ${escapeHtml(user.username || user.email)}
+            ${escapeHtml(user.name)}
           </a>
           <button id="logoutBtn" class="ml-2 px-3 py-1 rounded bg-white/10 border border-white/20 text-sm hover:bg-white/12">Logout</button>
         `;
         el('logoutBtn') && el('logoutBtn').addEventListener('click', ()=>{
-          localStorage.removeItem('authUser');
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('currentUser');
           location.reload();
         });
       } else {
@@ -192,20 +207,18 @@
     passwordInput && passwordInput.addEventListener('input', updateReqs);
     confirmInput && confirmInput.addEventListener('input', updateReqs);
 
-    function getUsers(){ try{ return JSON.parse(localStorage.getItem('users')||'[]'); }catch(e){ return []; } }
-    function saveUser(u){ const arr=getUsers(); arr.push(u); localStorage.setItem('users', JSON.stringify(arr)); }
-
     const signupForm = el('signupForm'), err = el('errorMsg');
-    signupForm && signupForm.addEventListener('submit', function(e){
-      e.preventDefault(); err && err.classList.add('hidden');
-      const username = (el('username') && el('username').value.trim()) || '';
+    signupForm && signupForm.addEventListener('submit', async function(e){
+      e.preventDefault();
+      err && err.classList.add('hidden');
+
+      const name = (el('username') && el('username').value.trim()) || '';
       const email = (el('email') && el('email').value.trim().toLowerCase()) || '';
       const phone = (el('phone') && el('phone').value.trim()) || '';
       const password = (passwordInput && passwordInput.value) || '';
       const confirm = (confirmInput && confirmInput.value) || '';
-      const gender = (el('gender') && el('gender').value) || '';
 
-      if(!username||!email||!phone||!password||!confirm||!gender){
+      if(!name||!email||!phone||!password||!confirm){
         err && (err.textContent='Please fill all fields.', err.classList.remove('hidden')); return;
       }
       if(!/^\d{10}$/.test(phone)){ err && (err.textContent='Contact must be exactly 10 digits.', err.classList.remove('hidden')); return; }
@@ -214,13 +227,19 @@
       if(!checks.length||!checks.uppercase||!checks.lowercase||!checks.digit||!checks.symbol){ err && (err.textContent='Password does not meet requirements.', err.classList.remove('hidden')); return; }
       if(!checks.match){ err && (err.textContent='Passwords do not match.', err.classList.remove('hidden')); return; }
 
-      const users = getUsers();
-      if(users.some(u=>u.username && u.username.toLowerCase()===username.toLowerCase())){ err && (err.textContent='Username already exists.', err.classList.remove('hidden')); return; }
-      if(users.some(u=>u.email && u.email===email)){ err && (err.textContent='Email already registered.', err.classList.remove('hidden')); return; }
-
-      saveUser({ username,email,phone,password,gender,created:Date.now() });
-      // show success modal then redirect to login
-      showSuccess('Account created!', 'Redirecting to login...', 'login.html', 1400);
+      try {
+        const result = await apiCall('/auth/signup', 'POST', { name, email, password, phone });
+        
+        if(result.success && result.token){
+          localStorage.setItem('authToken', result.token);
+          localStorage.setItem('currentUser', JSON.stringify(result.user));
+          showSuccess('✅ Account created!', 'Redirecting to home...', 'index.html', 1400);
+        } else {
+          err && (err.textContent = result.error || 'Signup failed', err.classList.remove('hidden'));
+        }
+      } catch (error) {
+        err && (err.textContent = 'Error: ' + error.message, err.classList.remove('hidden'));
+      }
     });
   </script>
 </body>
