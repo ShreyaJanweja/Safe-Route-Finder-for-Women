@@ -73,7 +73,7 @@
   <header class="bg-gradient-to-r from-indigo-600 to-indigo-400 text-white p-4 shadow-md">
     <div class="max-w-6xl mx-auto flex items-center justify-between">
       <div class="flex items-center gap-4">
-        <button id="btnBack" aria-label="Back" class="inline-flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded text-sm" onclick="window.location.href='index.html'">
+        <button id="btnBack" aria-label="Back" class="inline-flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded text-sm">
           <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
           <span class="hidden sm:inline">Back</span>
         </button>
@@ -92,42 +92,6 @@
       <div id="navAuth" class="ml-3"></div>
     </div>
   </header>
-
-  <script>
-  (function(){
-    const userJson = localStorage.getItem('currentUser') || localStorage.getItem('authUser');
-    const token = localStorage.getItem('authToken') || localStorage.getItem('authUser');
-    
-    // If not logged in, redirect
-    if (!userJson && !token) {
-      window.location.href = 'login.html';
-      return;
-    }
-
-    let user = {};
-    try {
-      user = userJson ? JSON.parse(userJson) : {};
-    } catch(e) {
-      user = {};
-    }
-
-    // Show user info in header
-    const userName = user.username || user.email || 'User';
-    const nav = document.getElementById('navAuth');
-    if(nav) {
-      nav.innerHTML = `
-        <span class="text-white text-sm">${userName}</span>
-        <button id="logoutBtn" class="ml-2 px-3 py-1 rounded bg-white/10 text-sm hover:bg-white/20">Logout</button>
-      `;
-      document.getElementById('logoutBtn').addEventListener('click', ()=>{
-        localStorage.removeItem('authUser');
-        localStorage.removeItem('currentUser');
-        localStorage.removeItem('authToken');
-        window.location.href = 'login.html';
-      });
-    }
-  })();
-  </script>
 
   <main class="max-w-6xl mx-auto mt-8 px-4">
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -379,113 +343,92 @@
       // helpers
       const esc = s => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const el = id => document.getElementById(id);
-      const API_URL = 'http://localhost:3001/api';
+      function getUsers(){ try{ return JSON.parse(localStorage.getItem('users')||'[]'); }catch(e){ return []; } }
 
-      // API call helper
-      async function apiCall(endpoint, method = 'GET', body = null) {
-        const token = localStorage.getItem('authToken');
-        const opts = {
-          method,
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token && { 'Authorization': `Bearer ${token}` })
-          }
-        };
-        if(body) opts.body = JSON.stringify(body);
-        try {
-          const res = await fetch(`${API_URL}${endpoint}`, opts);
-          if(!res.ok) {
-            if(res.status === 401) {
-              localStorage.removeItem('authToken');
-              window.location.href = 'login.html';
-              return null;
-            }
-            return null;
-          }
-          return await res.json();
-        } catch(e) {
-          console.error('API error:', e);
-          return null;
-        }
+      // auth check
+      const authUser = JSON.parse(localStorage.getItem('authUser') || 'null');
+      if(!authUser){ window.location.href = 'login.html'; return; }
+
+      // render header auth
+      const nav = el('navAuth');
+      if(nav){
+        nav.innerHTML = `
+          <a href="profile.html" class="inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded text-sm">${esc(authUser.username||authUser.email)}</a>
+          <button id="logoutBtn" class="ml-2 px-3 py-1 rounded bg-white/10 border border-white/20 text-sm">Logout</button>
+        `;
+        const logoutBtn = el('logoutBtn');
+        logoutBtn && logoutBtn.addEventListener('click', ()=>{ localStorage.removeItem('authUser'); window.location.href = 'login.html'; });
       }
 
-      // user record - fetch from API
-      let userProfile = null;
-      async function loadUserProfile() {
-        try {
-          const data = await apiCall('/user/profile');
-          if(data && data.user) {
-            userProfile = data.user;
-            updateProfileUI();
-            loadStatistics();
-          } else {
-            // Fallback: use currentUser from localStorage
-            console.warn('API call failed, using localStorage data');
-            userProfile = currentUser;
-            updateProfileUI();
-            loadStatistics();
-          }
-        } catch(err) {
-          console.error('Error loading profile:', err);
-          // Fallback: use currentUser from localStorage
-          userProfile = currentUser;
-          updateProfileUI();
-          loadStatistics();
-        }
+      // user record
+      const users = getUsers();
+      const me = users.find(u => u.email === authUser.email) || { username: authUser.username, email: authUser.email, created: Date.now() };
+
+      // populate profile header safely
+      const avatar = el('avatar'), nameEl = el('displayName'), emailEl = el('displayEmail'), joinEl = el('displayJoin');
+      const initials = ((me.username || me.email || 'U').trim().split(/\s+/)[0] || 'U').charAt(0).toUpperCase();
+      if(avatar) avatar.textContent = initials;
+      if(nameEl) nameEl.textContent = me.username || authUser.username || '';
+      if(emailEl) emailEl.textContent = me.email || authUser.email || '';
+      if(joinEl){
+        const joined = me.created ? new Date(me.created) : new Date();
+        joinEl.textContent = 'Joined: ' + joined.toLocaleDateString();
       }
 
-      function updateProfileUI() {
-        if(!userProfile) return;
-        const avatar = el('avatar'), nameEl = el('displayName'), emailEl = el('displayEmail'), joinEl = el('displayJoin');
-        const initials = ((userProfile.username || userProfile.email || 'U').trim().split(/\s+/)[0] || 'U').charAt(0).toUpperCase();
-        if(avatar) avatar.textContent = initials;
-        if(nameEl) nameEl.textContent = userProfile.username || userProfile.email || '';
-        if(emailEl) emailEl.textContent = userProfile.email || '';
-        if(joinEl){
-          const joined = userProfile.createdAt ? new Date(userProfile.createdAt) : new Date();
-          joinEl.textContent = 'Joined: ' + joined.toLocaleDateString();
-        }
-      }
-
-      function loadStatistics() {
-        if(!userProfile) return;
-        el('statReports') && (el('statReports').textContent = userProfile.reportsCount || 0);
-        el('statAlerts') && (el('statAlerts').textContent = userProfile.sosCount || 0);
-        el('statRoutes') && (el('statRoutes').textContent = userProfile.safeRoutesCount || 0);
-      }
+      // stats
+      el('statRoutes') && (el('statRoutes').textContent = Number(localStorage.getItem('stat_routes')||0));
+      el('statReports') && (el('statReports').textContent = Number(localStorage.getItem('stat_reports')||0));
+      el('statAlerts') && (el('statAlerts').textContent = Number(localStorage.getItem('stat_alerts')||0));
 
       // activity
       function loadActivity(){
-        // For now, show dummy activity - can be enhanced with /api/user/sos-history
-        let acts = [
-          { when: Date.now()-3600*1000, text: 'Checked a safe route' },
-          { when: Date.now()-3600*24*1000, text: 'Reported an area' },
-          { when: Date.now()-3600*48*1000, text: 'Viewed community post' }
-        ];
+        let acts = [];
+        try{ acts = JSON.parse(localStorage.getItem('activity')||'[]'); }catch(e){ acts = []; }
+        if(!acts.length){
+          acts = [
+            { when: Date.now()-3600*1000, text: 'Checked a safe route' },
+            { when: Date.now()-3600*24*1000, text: 'Reported an area' },
+            { when: Date.now()-3600*48*1000, text: 'Viewed community post' }
+          ];
+        }
         const list = el('activityList');
         if(!list) return;
         list.innerHTML = acts.slice(0,6).map(a => `<li class="p-3 rounded bg-slate-50 flex justify-between items-start"><div>${esc(a.text)}</div><div class="text-xs text-slate-400">${new Date(a.when).toLocaleString()}</div></li>`).join('');
       }
-      
-      loadUserProfile();
       loadActivity();
 
-      // ----- Emergency Contacts modal + API persistence -----
+      // --- Real-time stats updater (no UI changes) ---
+      function refreshStatsFromLocal(){
+        try{
+          const r = Number(localStorage.getItem('stat_routes') || 0);
+          const rep = Number(localStorage.getItem('stat_reports') || 0);
+          const a = Number(localStorage.getItem('stat_alerts') || 0);
+          el('statRoutes') && (el('statRoutes').textContent = r);
+          el('statReports') && (el('statReports').textContent = rep);
+          el('statAlerts') && (el('statAlerts').textContent = a);
+        }catch(e){ /* ignore */ }
+      }
+
+      // update when other tabs/pages change localStorage
+      window.addEventListener('storage', (evt)=>{
+        if(!evt.key) return;
+        if(evt.key === 'stat_routes' || evt.key === 'stat_reports' || evt.key === 'stat_alerts') refreshStatsFromLocal();
+      });
+
+      // periodic refresh in case some pages don't fire storage (every 5s)
+      try{ refreshStatsFromLocal(); var __profileStatsInterval = setInterval(refreshStatsFromLocal, 5000); }catch(e){}
+
+      // --- end real-time stats updater ---
+
+      // ----- Emergency Contacts modal + per-user persistence -----
       const ecModal = el('ecModal'), openECModal = el('openECModal'), closeECModal = el('closeECModal');
       const ecForm = el('ecForm'), ecName = el('ecName'), ecPhone = el('ecPhone'), countrySelect = el('countrySelect'), relationSelect = el('relationSelect');
       const saveContactBtn = el('saveContactBtn'), ecList = el('ecList'), clearAllEC = el('clearAllEC');
 
-      function readEC() { return (userProfile && userProfile.emergencyContacts) || []; }
-      
-      async function writeEC(arr) {
-        // Save to backend
-        const result = await apiCall('/user/profile', 'PUT', { emergencyContacts: arr });
-        if(result && result.user) {
-          userProfile = result.user;
-          renderECs();
-          renderInlineECList();
-        }
-      }
+      const EC_KEY = 'emergencyContacts_' + (authUser.email || authUser.username || 'default');
+
+      function readEC(){ try{ return JSON.parse(localStorage.getItem(EC_KEY) || '[]'); }catch(e){ return []; } }
+      function writeEC(arr){ localStorage.setItem(EC_KEY, JSON.stringify(arr)); }
 
       function renderECs(){
         const arr = readEC();
@@ -507,7 +450,7 @@
         removes.forEach(btn => btn.addEventListener('click', function(){
           const i = Number(this.getAttribute('data-idx'));
           const list = readEC();
-          if(i>=0 && i<list.length){ list.splice(i,1); writeEC(list); }
+          if(i>=0 && i<list.length){ list.splice(i,1); writeEC(list); renderECs(); renderInlineECList(); }
         }));
       }
 
@@ -533,12 +476,16 @@
 
         list.push({ id: Date.now(), name, phone: phoneRaw, country, relation });
         writeEC(list);
+        renderECs();
         ecForm.reset();
+        renderInlineECList();
       });
 
       clearAllEC && clearAllEC.addEventListener('click', function(){
         if(!confirm('Clear all emergency contacts for this account?')) return;
-        writeEC([]);
+        localStorage.removeItem(EC_KEY);
+        renderECs();
+        renderInlineECList();
       });
 
       function renderInlineECList(){
@@ -547,44 +494,25 @@
         const arr = readEC();
         if(!arr.length){ ul.innerHTML = '<li class="text-xs text-slate-400">No emergency contacts yet. Click "Manage Emergency Contacts" to add.</li>'; return; }
         ul.innerHTML = arr.map((ct, i)=>`<li class="flex items-center justify-between bg-slate-50 p-2 rounded"><div><div class="font-medium">${esc(ct.name)}</div><div class="text-xs text-slate-500">${esc(ct.country)} ${esc(ct.phone)}</div></div><button data-i="${i}" class="removeContact text-red-500 text-sm">Remove</button></li>`).join('');
-        ul.querySelectorAll('.removeContact').forEach(btn=>{ btn.addEventListener('click', ()=>{ const idx = Number(btn.dataset.i); const arr2 = readEC(); arr2.splice(idx,1); writeEC(arr2); }); });
+        ul.querySelectorAll('.removeContact').forEach(btn=>{ btn.addEventListener('click', ()=>{ const idx = Number(btn.dataset.i); const arr2 = readEC(); arr2.splice(idx,1); writeEC(arr2); renderInlineECList(); renderECs(); }); });
       }
 
       // initial render
-      renderECs(); 
-      renderInlineECList();
+      renderECs(); renderInlineECList();
 
-      // ----- Voice SOS integration with backend API -----
+      // ----- Voice SOS integration (exact names/behavior per your snippet) -----
       const sosCmdInput = el('sosCmd'), saveSosBtn = el('saveSosBtn'), startSosBtn = el('startListening'), sosHeard = el('sosHeardArea');
       const status = el('status'); // status element used by your snippet
 
-      function loadSosCmd(){ 
-        try{ 
-          if(userProfile && userProfile.voiceCommand) {
-            sosCmdInput && (sosCmdInput.value = userProfile.voiceCommand);
-          }
-        }catch(e){} 
-      }
+      // per-account command key
+      const SOS_CMD_KEY = EC_KEY + '_cmd';
 
-      async function saveSosCmd(){ 
-        try{ 
-          if(!sosCmdInput) return; 
-          const cmd = sosCmdInput.value.trim();
-          const result = await apiCall('/user/profile', 'PUT', { voiceCommand: cmd });
-          if(result && result.user) {
-            userProfile = result.user;
-            if(status) {
-              status.textContent = 'Status: command saved'; 
-              setTimeout(()=>status && (status.textContent='Status: idle'),1500);
-            }
-          }
-        }catch(e){} 
-      }
-
+      function loadSosCmd(){ try{ sosCmdInput && (sosCmdInput.value = localStorage.getItem(SOS_CMD_KEY) || localStorage.getItem('sos_cmd') || ''); }catch(e){} }
+      function saveSosCmd(){ try{ if(!sosCmdInput) return; localStorage.setItem(SOS_CMD_KEY, sosCmdInput.value.trim()); localStorage.setItem('sos_cmd', sosCmdInput.value.trim()); status && (status.textContent = 'Status: command saved'); setTimeout(()=>status && (status.textContent='Status: idle'),1500); }catch(e){} }
       saveSosBtn && saveSosBtn.addEventListener('click', saveSosCmd);
       loadSosCmd();
 
-      // Provide getContacts() as your snippet expects (returns array of contacts from backend)
+      // Provide getContacts() as your snippet expects (returns array of contacts from per-account storage)
       function getContacts(){
         try{ return readEC(); }catch(e){ return []; }
       }
@@ -620,7 +548,7 @@
 
       // checkCommand should read saved command; if matched, trigger SOS flow
       function checkCommand(spoken) {
-        const cmd = (userProfile && userProfile.voiceCommand || '').toLowerCase();
+        const cmd = (localStorage.getItem(SOS_CMD_KEY) || localStorage.getItem('sos_cmd') || '').toLowerCase();
         if(!cmd) { console.log('no cmd set'); return; }
         if (spoken.toLowerCase().includes(cmd)) {
           if(status) status.textContent = 'Trigger matched! Preparing messages...';
@@ -688,6 +616,10 @@
         const contacts = getContacts();
         if(!contacts || !contacts.length){ alert('No contacts saved'); return; }
 
+        // read optional server config (for dev you can set these on window or localStorage)
+        const serverUrl = window.SERVER_URL || localStorage.getItem('SERVER_URL') || '';
+        const serverApiKey = window.SERVER_API_KEY || localStorage.getItem('SERVER_API_KEY') || '';
+
         // helper: open sms: composer fallback for each contact
         function openSmsFallback(contacts, messageEncoded){
           contacts.forEach((c)=>{
@@ -698,18 +630,18 @@
           });
         }
 
-        // helper: send SOS via backend API
-        async function sendSosViaAPI(contacts, messagePlain, locationObj){
+        // helper: try sending to server /send-sos with a short timeout
+        async function sendSosViaServer(url, apiKey, contacts, messagePlain, locationObj){
+          if(!url) return { ok:false, error:'no-server' };
           try{
-            const endpoint = `${API_URL}/sos`;
+            const endpoint = url.replace(/\/$/,'') + '/send-sos';
             const controller = new AbortController();
             const to = setTimeout(()=>controller.abort(), 8000);
-            const token = localStorage.getItem('authToken');
             const resp = await fetch(endpoint, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` })
+                'x-api-key': apiKey || ''
               },
               body: JSON.stringify({ contacts: contacts, message: messagePlain, location: locationObj }),
               signal: controller.signal
@@ -748,17 +680,22 @@
           const messagePlain = loc ? ('🚨 I need help! This is an emergency. My location: ' + locationLink) : '🚨 I need help! This is an emergency.';
           const messageEncoded = encodeURIComponent(messagePlain);
 
-          // try API first
-          try{
-            const res = await sendSosViaAPI(contacts, messagePlain, loc);
-            if(res && res.ok){
-              try{ if(status) status.textContent = 'SOS sent via backend'; }catch(e){}
-              try{ alert('SOS sent via backend to your contacts.'); }catch(e){}
-              return;
+          // try server first if configured
+          if(serverUrl){
+            try{
+              const res = await sendSosViaServer(serverUrl, serverApiKey, contacts, messagePlain, loc);
+              if(res && res.ok){
+                // server reported success
+                try{ if(status) status.textContent = 'SOS sent via server'; }catch(e){}
+                // show a small UI cue if available
+                try{ alert('SOS sent via server to your contacts.'); }catch(e){}
+                return;
+              }
+              // if server not ok, fall through to sms fallback
+              console.warn('Server SOS failed, falling back to SMS composer', res);
+            }catch(e){
+              console.warn('Server send error, falling back to SMS composer', e);
             }
-            console.warn('Backend SOS failed, falling back to SMS composer', res);
-          }catch(e){
-            console.warn('Backend send error, falling back to SMS composer', e);
           }
 
           // fallback: open sms: composer per contact
@@ -810,29 +747,33 @@
 
       // Edit profile modal handlers
       const modalEdit = el('modalEdit'), editForm = el('editForm');
-      el('btnEditProfile') && el('btnEditProfile').addEventListener('click', ()=>{ 
-        el('editUsername') && (el('editUsername').value = userProfile?.username || ''); 
-        el('editEmail') && (el('editEmail').value = userProfile?.email || ''); 
-        modalEdit && modalEdit.classList.remove('hidden'); 
-      });
+      el('btnEditProfile') && el('btnEditProfile').addEventListener('click', ()=>{ el('editUsername') && (el('editUsername').value = me.username || ''); el('editEmail') && (el('editEmail').value = me.email || ''); modalEdit && modalEdit.classList.remove('hidden'); });
       el('cancelEdit') && el('cancelEdit').addEventListener('click', ()=> modalEdit && modalEdit.classList.add('hidden'));
 
-      editForm && editForm.addEventListener('submit', async function(e){
+      editForm && editForm.addEventListener('submit', function(e){
         e.preventDefault();
         const nu = (el('editUsername') && el('editUsername').value.trim()) || '';
         const ne = (el('editEmail') && el('editEmail').value.trim().toLowerCase()) || '';
         if(!nu || !ne){ alert('Provide username and email.'); return; }
 
-        const result = await apiCall('/user/profile', 'PUT', { username: nu, email: ne });
-        if(result && result.user) {
-          userProfile = result.user;
-          updateProfileUI();
-          modalEdit && modalEdit.classList.add('hidden');
-          alert('Profile updated.');
-          setTimeout(()=> location.reload(), 300);
+        const all = getUsers();
+        const idx = all.findIndex(u=>u.email === me.email);
+        if(idx >= 0){
+          const other = all.find((u,i)=>u.email === ne && i !== idx);
+          if(other){ alert('Email already used by another account.'); return; }
+          all[idx].username = nu; all[idx].email = ne;
+          localStorage.setItem('users', JSON.stringify(all));
         } else {
-          alert('Failed to update profile.');
+          all.push({ username: nu, email: ne, created: me.created || Date.now() });
+          localStorage.setItem('users', JSON.stringify(all));
         }
+        const newAuth = { username: nu, email: ne };
+        localStorage.setItem('authUser', JSON.stringify(newAuth));
+        el('displayName') && (el('displayName').textContent = nu);
+        el('displayEmail') && (el('displayEmail').textContent = ne);
+        modalEdit && modalEdit.classList.add('hidden');
+        alert('Profile updated.');
+        setTimeout(()=> location.reload(), 300);
       });
 
       // Change password handlers
@@ -840,68 +781,28 @@
       el('btnChangePassword') && el('btnChangePassword').addEventListener('click', ()=> modalPwd && modalPwd.classList.remove('hidden'));
       el('cancelPwd') && el('cancelPwd').addEventListener('click', ()=> modalPwd && modalPwd.classList.add('hidden'));
 
-      pwdForm && pwdForm.addEventListener('submit', async function(e){
+      pwdForm && pwdForm.addEventListener('submit', function(e){
         e.preventDefault();
         const cur = (el('currentPwd') && el('currentPwd').value) || '';
         const nw = (el('newPwd') && el('newPwd').value) || '';
         const cn = (el('confirmNewPwd') && el('confirmNewPwd').value) || '';
         if(!cur || !nw || !cn){ alert('Fill all fields.'); return; }
         if(nw !== cn){ alert('New passwords do not match.'); return; }
-        if(nw.length < 8){ alert('Password must be at least 8 characters.'); return; }
-
-        // For now, password change would require a dedicated endpoint
-        alert('Password change feature coming soon.');
+        const all = getUsers();
+        const idx = all.findIndex(u => u.email === me.email);
+        if(idx === -1 || all[idx].password !== cur){
+          alert('Current password incorrect.');
+          return;
+        }
+        all[idx].password = nw;
+        localStorage.setItem('users', JSON.stringify(all));
         modalPwd && modalPwd.classList.add('hidden');
+        alert('Password updated.');
       });
 
       // footer year
       el('year') && (el('year').textContent = new Date().getFullYear());
     })();
   </script>
-
-  <!-- Footer -->
-  <footer class="w-full bg-gradient-to-r from-indigo-700 to-indigo-600 text-white mt-12">
-    <div class="max-w-6xl mx-auto px-6 py-10 grid gap-6 md:grid-cols-4">
-      <div>
-        <div class="text-lg font-semibold">Suraksha Sathi</div>
-        <p class="text-sm mt-2 text-indigo-100">Empowering safe mobility for women using community reports, live insights and SOS alerts.</p>
-        <div class="text-xs text-indigo-200 mt-4">Built by students • Demo Prototype</div>
-      </div>
-      <div>
-        <div class="font-semibold mb-2">Quick links</div>
-        <ul class="space-y-1 text-sm">
-          <li><a href="index.html#home" class="hover:text-indigo-200">Home</a></li>
-          <li><a href="index.html#route" class="hover:text-indigo-200">Route Finder</a></li>
-          <li><a href="index.html#community" class="hover:text-indigo-200">Community</a></li>
-          <li><a href="index.html#about" class="hover:text-indigo-200">About</a></li>
-        </ul>
-      </div>
-      <div>
-        <div class="font-semibold mb-2">Resources</div>
-        <ul class="space-y-1 text-sm">
-          <li><a href="https://www.openstreetmap.org" target="_blank" class="hover:text-indigo-200">OpenStreetMap</a></li>
-          <li><a href="https://project-osrm.org" target="_blank" class="hover:text-indigo-200">OSRM routing</a></li>
-          <li><a href="#" class="hover:text-indigo-200">Privacy & Terms</a></li>
-        </ul>
-      </div>
-      <div>
-        <div class="font-semibold mb-2">Contact</div>
-        <div class="text-sm text-indigo-100">Email: <a href="mailto:hello@surakshasathi.example" class="hover:text-indigo-200">hello@surakshasathi.example</a></div>
-        <div class="text-sm text-indigo-100 mt-2">Phone: <a href="tel:+911234567890" class="hover:text-indigo-200">+91 12345 67890</a></div>
-        <div class="flex gap-2 mt-3">
-          <a href="#" aria-label="Twitter" class="hover:text-indigo-200">🐦</a>
-          <a href="#" aria-label="Instagram" class="hover:text-indigo-200">📸</a>
-          <a href="#" aria-label="LinkedIn" class="hover:text-indigo-200">🔗</a>
-        </div>
-      </div>
-    </div>
-
-    <div class="border-t border-indigo-600/50">
-      <div class="max-w-6xl mx-auto px-6 py-3 flex flex-col md:flex-row items-center justify-between text-xs text-indigo-200">
-        <div>© <span id="year"></span> Suraksha Sathi — All rights reserved</div>
-        <div class="mt-2 md:mt-0">Made with ❤️</div>
-      </div>
-    </div>
-  </footer>
 </body>
 </html>

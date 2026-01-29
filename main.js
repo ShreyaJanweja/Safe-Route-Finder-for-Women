@@ -74,14 +74,11 @@ document.addEventListener('DOMContentLoaded', () => {
       navAuth.innerHTML = `
         <div class="flex items-center gap-2">
           <span class="text-sm">${currentUser.name}</span>
-          <a href="#" id="profileLink" class="text-sm px-3 py-1 rounded hover:bg-white/10">Profile</a>
+          <a href="profile.html" id="profileLink" class="text-sm px-3 py-1 rounded hover:bg-white/10">Profile</a>
           <button id="logoutBtn" class="text-sm px-3 py-1 rounded hover:bg-white/10">Logout</button>
         </div>
       `;
-      document.getElementById('profileLink').addEventListener('click', (e) => {
-        e.preventDefault();
-        showPage('profile');
-      });
+      // Leave default link behaviour so clicking opens profile.html (do not intercept)
       document.getElementById('logoutBtn').addEventListener('click', () => {
         localStorage.removeItem('authToken');
         authToken = null;
@@ -268,6 +265,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         alert('✅ Report submitted successfully!');
         loadReports();
+        // increment report stat locally and try to sync with backend
+        try{
+          const prevR = Number(localStorage.getItem('stat_reports') || 0) + 1;
+          localStorage.setItem('stat_reports', String(prevR));
+          if(authToken){ try{ apiCall('/user/profile', 'PUT', { reportsCount: prevR }).catch(()=>{}); }catch(e){} }
+        }catch(e){}
         modal.remove();
       } catch (err) {
         alert('❌ Failed to submit report: ' + err.message);
@@ -297,6 +300,12 @@ document.addEventListener('DOMContentLoaded', () => {
             message: 'I need help! Please check my location.'
           });
           alert('🚨 SOS sent! Emergency contacts have been notified.');
+          // Increment alerts stat locally and best-effort sync to backend
+          try{
+            const prevA = Number(localStorage.getItem('stat_alerts') || 0) + 1;
+            localStorage.setItem('stat_alerts', String(prevA));
+            if(authToken){ try{ apiCall('/user/profile', 'PUT', { sosCount: prevA }).catch(()=>{}); }catch(e){} }
+          }catch(e){}
         } catch (err) {
           alert('❌ Failed to send SOS: ' + err.message);
         }
@@ -374,7 +383,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }));
   });
 
-  document.getElementById('findRoutesBtn')?.addEventListener('click', async () => {
+  const findBtn = document.getElementById('findRoutesBtn') || document.getElementById('btnFind');
+  findBtn?.addEventListener('click', async () => {
     if (!coordStore.start || !coordStore.end) {
       alert('Please select both start and end locations');
       return;
@@ -443,6 +453,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!currentRoutes[index]) return;
     const route = currentRoutes[index];
     if (routingControl) map.removeControl(routingControl);
+
+    // Increment local stat for safe routes taken (real-time UI update via storage events)
+    try {
+      const prev = Number(localStorage.getItem('stat_routes') || 0) + 1;
+      localStorage.setItem('stat_routes', String(prev));
+      if (authToken) {
+        try { apiCall('/user/profile', 'PUT', { safeRoutesCount: prev }).catch(()=>{}); } catch(e) {}
+      }
+    } catch(e) { /* ignore */ }
 
     const coords = route.coordinates.map(c => L.latLng(c.lat, c.lng));
     const line = L.polyline(coords, { color: '#10b981', weight: 7, opacity: 0.95 }).addTo(map);
